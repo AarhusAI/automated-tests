@@ -8,6 +8,17 @@ Selenium-based end-to-end tests for the AarhusAI web UI.
 2. Install dependencies (uv): `uv sync`.
 3. Run all tests: `uv run python -m unittest`.
 
+## Docker
+
+The image (`.docker/app/Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any local browser setup. Credentials are passed from `.env` at runtime (not baked into the image).
+
+- Build: `docker compose build`
+- Run all tests: `docker compose run --rm tests`
+- Run a single test: `docker compose run --rm tests python -m unittest tests.user.test_chat`
+- Explore a page: `docker compose run --rm tests python exploration/explore.py <url_path> --login user` (outputs land in `exploration/` on the host via the bind mount)
+
+The container entrypoint wraps commands in `xvfb-run`, which provides the virtual display the non-headless dictation test needs.
+
 ## Tests
 
 ### Builder

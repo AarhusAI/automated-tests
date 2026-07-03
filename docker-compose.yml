@@ -1,0 +1,12 @@
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: .docker/app/Dockerfile
+    # Without an init as PID 1, the xvfb-run entrypoint hangs forever
+    # waiting for Xvfb's readiness signal.
+    init: true
+    env_file: .env
+    volumes:
+      - .:/app
+#    shm_size: 2gb
