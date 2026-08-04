@@ -55,4 +55,8 @@ The container entrypoint wraps commands in `xvfb-run`, which provides the virtua
 
 ## Exploration
 
-`exploration/explore.py` is a helper for writing new tests: it navigates to a path (optionally logging in first) and dumps a screenshot plus the rendered page source so selectors can be inspected without running a full test.
+`exploration/explore.py` is a helper for writing new tests: it navigates to a path (optionally logging in first) and dumps a screenshot plus the rendered page source so selectors can be inspected without running a full test. Pass `--click <selector>` (repeatable; CSS, or XPath if it starts with `//`) to click elements — e.g. open a menu or flip a toggle — before the capture:
+
+```bash
+uv run python exploration/explore.py --login user --click "#integration-menu-button"
+```
