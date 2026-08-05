@@ -32,10 +32,17 @@ class TestUserWebSearch(unittest.TestCase):
 
         browser.find_element(By.ID, "integration-menu-button").click()
 
+        WebDriverWait(browser, 5).until(
+            EC.element_to_be_clickable((
+                By.XPATH,
+                "//button[contains(normalize-space(.), 'Værktøjer')]",
+            ))
+        ).click()
+
         web_search_toggle = WebDriverWait(browser, 5).until(
             EC.element_to_be_clickable((
                 By.XPATH,
-                "//*[normalize-space(text())='Websøgning']"
+                "//*[normalize-space(text())='websearch']"
                 "/ancestor::*[.//button[@role='switch']][1]"
                 "//button[@role='switch']",
             ))
@@ -47,7 +54,7 @@ class TestUserWebSearch(unittest.TestCase):
 
         chat_input = browser.find_element(By.ID, "chat-input")
         chat_input.click()
-        chat_input.send_keys("Hvem er borgmester i Aarhus?.")
+        chat_input.send_keys("Hvem er borgmester i Aarhus?")
         browser.find_element(By.ID, "send-message-button").click()
 
         WebDriverWait(browser, 120).until(
