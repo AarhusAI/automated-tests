@@ -47,7 +47,7 @@ The container entrypoint wraps commands in `xvfb-run`, which provides the virtua
 
 #### [tests/user/test_web_search.py](tests/user/test_web_search.py)
 
-- **`test_user_can_enable_web_search_and_find_mayor_of_aarhus`** — opens the integration menu, toggles on Websøgning, asks who the mayor of Aarhus is, and asserts the response contains "Anders Winnerskjold".
+- **`test_user_can_enable_web_search_and_find_mayor_of_aarhus`** — opens the integration menu, opens Værktøjer and toggles on the websearch tool, asks who the mayor of Aarhus is, and asserts the response contains "Anders Winnerskjold".
 
 #### [tests/user/test_dictate.py](tests/user/test_dictate.py)
 

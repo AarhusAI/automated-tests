@@ -32,10 +32,17 @@ class TestUserWebSearch(unittest.TestCase):
 
         browser.find_element(By.ID, "integration-menu-button").click()
 
+        WebDriverWait(browser, 5).until(
+            EC.element_to_be_clickable((
+                By.XPATH,
+                "//button[contains(normalize-space(.), 'Værktøjer')]",
+            ))
+        ).click()
+
         web_search_toggle = WebDriverWait(browser, 5).until(
             EC.element_to_be_clickable((
                 By.XPATH,
-                "//*[normalize-space(text())='Websøgning']"
+                "//*[normalize-space(text())='websearch']"
                 "/ancestor::*[.//button[@role='switch']][1]"
                 "//button[@role='switch']",
             ))
