@@ -54,10 +54,8 @@ class TestUserWebSearch(unittest.TestCase):
 
         chat_input = browser.find_element(By.ID, "chat-input")
         chat_input.click()
-        # In OpenWebUI 0.11 clicking the send-message-button does not correctly fire the websearch
-        # it however works fine if enter is pressed: "\n".
-        chat_input.send_keys("Hvem er borgmester i Aarhus?\n")
-        # browser.find_element(By.ID, "send-message-button").click()
+        chat_input.send_keys("Hvem er borgmester i Aarhus?")
+        browser.find_element(By.ID, "send-message-button").click()
 
         WebDriverWait(browser, 120).until(
             lambda d: d.find_element(By.ID, "response-content-container").text.strip() != ""
