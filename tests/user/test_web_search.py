@@ -39,17 +39,20 @@ class TestUserWebSearch(unittest.TestCase):
             ))
         ).click()
 
-        web_search_toggle = WebDriverWait(browser, 5).until(
+        # The row button carries the toggle state in aria-pressed; the inner
+        # role="switch" is inert (display-only). The enabled state persists
+        # per user across sessions, so only click when it is currently off.
+        web_search_row = WebDriverWait(browser, 5).until(
             EC.element_to_be_clickable((
                 By.XPATH,
-                "//*[normalize-space(text())='websearch']"
-                "/ancestor::*[.//button[@role='switch']][1]"
-                "//button[@role='switch']",
+                "//button[@aria-pressed]"
+                "[.//*[normalize-space(text())='websearch']]",
             ))
         )
-        web_search_toggle.click()
+        if web_search_row.get_attribute("aria-pressed") != "true":
+            web_search_row.click()
         WebDriverWait(browser, 5).until(
-            lambda _: web_search_toggle.get_attribute("aria-checked") == "true"
+            lambda _: web_search_row.get_attribute("aria-pressed") == "true"
         )
 
         chat_input = browser.find_element(By.ID, "chat-input")
