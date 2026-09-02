@@ -36,10 +36,14 @@ class TestUserFileUpload(unittest.TestCase):
         browser.execute_script("arguments[0].removeAttribute('hidden')", file_input)
         file_input.send_keys(os.path.abspath(FIXTURE_FILE))
 
-        # Wait for the upload spinner to disappear from the DOM
-        WebDriverWait(browser, 15).until(lambda d: not d.execute_script(
-            "return [...document.querySelectorAll('style')]"
-            ".some(s => s.textContent.includes('@keyframes spinner'))"
+        # Wait for the file chip to appear and its upload spinner to be
+        # replaced by the document icon. The check must be scoped to the
+        # chip: the page permanently contains spinner styles elsewhere.
+        WebDriverWait(browser, 30).until(lambda d: d.execute_script(
+            "const chip = [...document.querySelectorAll('button')]"
+            "    .find(el => el.textContent.includes(arguments[0]));"
+            "return !!chip && !chip.querySelector('style, [class*=\"spinner\"]');",
+            os.path.basename(FIXTURE_FILE)
         ))
 
         chat_input = browser.find_element(By.ID, "chat-input")
