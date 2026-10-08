@@ -29,6 +29,7 @@ class TestUserAssistants(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
+        helpers.screenshot_on_failure(self, self.browser)
         self.browser.quit()
 
     def test_available_assistants_are_listed(self):

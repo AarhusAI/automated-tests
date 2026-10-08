@@ -8,6 +8,9 @@ Selenium-based end-to-end tests for the AarhusAI web UI.
 2. Install dependencies (uv): `uv sync`.
 3. Run all tests: `uv run python -m unittest`.
 
+When a test fails or errors, a screenshot of the browser is saved to `screenshots/<test id>.png` (gitignored,
+overwritten on each run). In Docker it lands in `./screenshots/` on the host via the bind mount.
+
 ## Docker
 
 The image (`.docker/app/Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any
