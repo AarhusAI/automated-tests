@@ -45,6 +45,8 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 - `task tests` — clear `screenshots/` and run all tests
 - `task test TEST=tests.user.test_chat` — run one module/method (defaults to `tests.user.test_chat`)
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
+- `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
+  (`task lint:markdown -- --fix` autofixes)
 
 `SCREENSHOTS`/`HTML_DUMP` set in the shell are forwarded, e.g. `HTML_DUMP=1 task tests`.
 

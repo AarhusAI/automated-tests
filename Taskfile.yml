@@ -41,3 +41,20 @@ tasks:
     desc: Run exploration script (task explore -- <url_path> --login user --click "#sel")
     cmds:
       - docker compose run --rm tests python exploration/explore.py {{.CLI_ARGS}}
+
+  lint:
+    desc: Run markdown and changelog checks
+    cmds:
+      - task: lint:markdown
+      - task: lint:changelog
+
+  lint:markdown:
+    desc: Lint all markdown files (task lint:markdown -- --fix to autofix)
+    cmds:
+      - docker run -v ./:/md --rm itkdev/markdownlint markdownlint {{.CLI_ARGS}} '**/*.md'
+
+  lint:changelog:
+    desc: Check that CHANGELOG.md has changed compared to origin/main
+    cmds:
+      - git fetch origin main
+      - git diff --quiet origin/main -- CHANGELOG.md && echo "CHANGELOG.md not updated" && exit 1 || exit 0
