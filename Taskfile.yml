@@ -1,0 +1,35 @@
+version: '3'
+
+env:
+  UID:
+    sh: id -u
+  GID:
+    sh: id -g
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  setup:
+    desc: Copy .env.example to .env (fill in values afterwards)
+    cmds:
+      - cp .env.example .env
+    status:
+      - test -f .env
+
+  build:
+    desc: Build the test image
+    cmds:
+      - docker compose build
+
+  tests:
+    desc: Run tests
+    cmds:
+      - docker compose run --rm tests
+
+  test:
+    desc: Run single test
+    cmds:
+      - docker compose run --rm tests python -m unittest tests.user.test_chat

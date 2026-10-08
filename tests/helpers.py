@@ -1,5 +1,6 @@
 import os
 
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,3 +19,20 @@ def wait_for_app(browser):
     WebDriverWait(browser, 30).until(
         EC.invisibility_of_element_located((By.ID, "splash-screen"))
     )
+
+
+SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
+
+
+def screenshot_on_failure(test, browser):
+    # ponytail: reads unittest's private _outcome; no public "did this test fail" API in tearDown
+    result = test._outcome.result
+    if not any(t is test for t, _ in result.errors + result.failures):
+        return
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    path = os.path.abspath(os.path.join(SCREENSHOT_DIR, f"{test.id()}.png"))
+    try:
+        browser.save_screenshot(path)
+        print(f"\nScreenshot saved: {path}")
+    except WebDriverException:
+        pass

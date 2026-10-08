@@ -3,10 +3,15 @@ services:
     build:
       context: .
       dockerfile: .docker/app/Dockerfile
+      # Build-time ids for the deploy user (Taskfile exports the host's);
+      # unset falls back to the server's 1042.
+      args:
+        UID: ${UID:-1042}
+        GID: ${GID:-1042}
     # Without an init as PID 1, the xvfb-run entrypoint hangs forever
     # waiting for Xvfb's readiness signal.
     init: true
     env_file: .env
     volumes:
       - .:/app
-#    shm_size: 2gb
+#    shm_size: 2gb  

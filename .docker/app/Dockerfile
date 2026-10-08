@@ -42,9 +42,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY tests /app/tests
 COPY exploration /app/exploration
 
-# Add deploy user to match server.
-RUN addgroup --gid 1042 deploy \
-    && useradd --gid 1042 --uid 1042 --home-dir /home/deploy --create-home --shell /bin/bash deploy \
+# Add deploy user; UID/GID default to the server's 1042. `task build` passes the
+# host's ids so bind-mounted writes work. --non-unique tolerates ids that already
+# exist in the image (e.g. gid 20 on macOS).
+ARG UID=1042
+ARG GID=1042
+RUN groupadd --non-unique --gid ${GID} deploy \
+    && useradd --non-unique --gid ${GID} --uid ${UID} --home-dir /home/deploy --create-home --shell /bin/bash deploy \
     && chown -R deploy:deploy /app /opt/venv
 
 USER deploy

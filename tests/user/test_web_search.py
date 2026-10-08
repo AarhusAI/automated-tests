@@ -22,6 +22,7 @@ class TestUserWebSearch(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
+        helpers.screenshot_on_failure(self, self.browser)
         self.browser.quit()
 
     def test_user_can_enable_web_search_and_find_mayor_of_aarhus(self):

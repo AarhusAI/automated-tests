@@ -24,6 +24,7 @@ class TestUserFileUpload(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
+        helpers.screenshot_on_failure(self, self.browser)
         self.browser.quit()
 
     def test_user_can_upload_file_and_ask_about_content(self):

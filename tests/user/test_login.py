@@ -19,6 +19,7 @@ class TestUserLogin(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
+        helpers.screenshot_on_failure(self, self.browser)
         self.browser.quit()
 
     def test_login_as_user(self):
