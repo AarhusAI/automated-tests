@@ -31,6 +31,7 @@ class TestUserFileUpload(unittest.TestCase):
         browser = self.browser
 
         helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
 
         file_input = browser.find_element(By.CSS_SELECTOR, 'input[type="file"][multiple]')

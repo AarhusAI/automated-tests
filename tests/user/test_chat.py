@@ -29,6 +29,7 @@ class TestUserChat(unittest.TestCase):
         browser = self.browser
 
         helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
 
         chat_input = browser.find_element(By.ID, "chat-input")

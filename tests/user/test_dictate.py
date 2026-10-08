@@ -37,6 +37,7 @@ class TestUserDictate(unittest.TestCase):
         browser = self.browser
 
         helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
 
         browser.find_element(By.ID, "voice-input-button").click()

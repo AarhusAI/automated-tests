@@ -60,7 +60,7 @@ There is no build step, linter, formatter, type checker or CI. `Taskfile.yml` on
   - `tearDown` calls `browser.quit()`.
   - The module ends with `if __name__ == "__main__": unittest.main()`.
 - **Credentials:** read them as `os.environ["USER_USERNAME"]`, `os.environ["USER_PASSWORD"]`, `os.environ["BUILDER_USERNAME"]` and `os.environ["BUILDER_PASSWORD"]`. Never hardcode them.
-- **Login tests** assert `browser.current_url == os.environ["TEST_DOMAIN"]` and skip `wait_for_app`. All other tests call `wait_for_app` after login.
+- **Login tests** call `wait_for_app`, then assert `browser.current_url == os.environ["TEST_DOMAIN"]` and that `#chat-input-container` is displayed. All other tests also call `wait_for_app` after login.
 - **Selectors:**
   - Prefer `By.ID`, e.g. `chat-input`, `send-message-button`, `voice-input-button`.
   - Match visible text with XPath and `normalize-space`. The text is Danish, e.g. `Værktøjer`.

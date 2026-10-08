@@ -3,6 +3,9 @@ import unittest
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import dotenv
 
 from tests import helpers
@@ -24,8 +27,11 @@ class TestUserLogin(unittest.TestCase):
 
     def test_login_as_user(self):
         helpers.login(self.browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
+        helpers.wait_for_app(self.browser)
 
         self.assertEqual(self.browser.current_url, os.environ["TEST_DOMAIN"])
+        WebDriverWait(self.browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
 
 if __name__ == '__main__':
