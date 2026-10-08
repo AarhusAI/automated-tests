@@ -17,4 +17,3 @@ services:
       - HTML_DUMP
     volumes:
       - .:/app
-#    shm_size: 2gb  

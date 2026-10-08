@@ -2,8 +2,6 @@ import os
 import time
 import unittest
 
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,27 +16,17 @@ FIXTURE_AUDIO = os.path.abspath(
 )
 
 
-class TestUserDictate(unittest.TestCase):
-    def setUp(self):
-        options = Options()
-        # options.add_argument("--headless")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--use-fake-ui-for-media-stream")
-        options.add_argument("--use-fake-device-for-media-stream")
-        options.add_argument(f"--use-file-for-fake-audio-capture={FIXTURE_AUDIO}")
-        self.browser = Chrome(options=options)
-        self.browser.implicitly_wait(5)
-
-    def tearDown(self):
-        helpers.save_screenshot(self, self.browser)
-        self.browser.quit()
+class TestUserDictate(helpers.BrowserTestCase):
+    # Not headless: the fake mic needs a display (Xvfb in Docker).
+    chrome_args = (
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        f"--use-file-for-fake-audio-capture={FIXTURE_AUDIO}",
+    )
 
     def test_user_can_dictate_into_chat_input(self):
         browser = self.browser
-
-        helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
-        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
-        helpers.wait_for_app(browser)
+        helpers.open_chat(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
 
         WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
@@ -50,11 +38,9 @@ class TestUserDictate(unittest.TestCase):
         time.sleep(4)  # let the fake mic play the fixture WAV
         confirm.click()
 
-        WebDriverWait(browser, 30).until(
-            lambda d: d.find_element(By.ID, "chat-input").text.strip() != ""
+        transcribed = WebDriverWait(browser, 30).until(
+            lambda d: d.find_element(By.ID, "chat-input").text.strip()
         )
-
-        transcribed = browser.find_element(By.ID, "chat-input").text.strip()
         self.assertIn("Hej med dig", transcribed)
 
 

@@ -1,8 +1,6 @@
 import os
 import unittest
 
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,24 +11,10 @@ from tests import helpers
 dotenv.load_dotenv()
 
 
-class TestUserChat(unittest.TestCase):
-    def setUp(self):
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--window-size=1920,1080")
-        self.browser = Chrome(options=options)
-        self.browser.implicitly_wait(5)
-
-    def tearDown(self):
-        helpers.save_screenshot(self, self.browser)
-        self.browser.quit()
-
+class TestUserChat(helpers.BrowserTestCase):
     def test_user_can_send_prompt_and_receive_response(self):
         browser = self.browser
-
-        helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
-        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
-        helpers.wait_for_app(browser)
+        helpers.open_chat(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
 
         WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
@@ -44,7 +28,7 @@ class TestUserChat(unittest.TestCase):
         )
 
         response = browser.find_element(By.ID, "response-content-container")
-        self.assertTrue(len(response.text.strip()) > 0)
+        self.assertTrue(response.text.strip())
 
 
 if __name__ == "__main__":

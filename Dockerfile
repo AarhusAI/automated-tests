@@ -37,9 +37,6 @@ COPY pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-COPY tests /app/tests
-COPY exploration /app/exploration
-
 # Add deploy user; UID/GID default to the server's 1042. `task build` passes the
 # host's ids so bind-mounted writes work. --non-unique tolerates ids that already
 # exist in the image (e.g. gid 20 on macOS).
