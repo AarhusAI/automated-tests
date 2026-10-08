@@ -28,17 +28,24 @@ SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
 
 
 def save_screenshot(test, browser):
+    # Toggles: SCREENSHOTS=0 disables the PNG (default on); HTML_DUMP=1 enables the page HTML (default off).
+    screenshot = os.environ.get("SCREENSHOTS", "1") != "0"
+    html = os.environ.get("HTML_DUMP", "0") != "0"
+    if not (screenshot or html):
+        return
     # ponytail: reads unittest's private _outcome; no public "did this test fail" API in tearDown
     result = test._outcome.result
     failed = any(t is test for t, _ in result.errors + result.failures)
     directory = os.path.join(SCREENSHOT_DIR, "failed" if failed else "success")
     os.makedirs(directory, exist_ok=True)
-    path = os.path.abspath(os.path.join(directory, f"{test.id()}.png"))
+    path = os.path.abspath(os.path.join(directory, test.id()))
     try:
-        browser.save_screenshot(path)
-        with open(path.removesuffix(".png") + ".html", "w", encoding="utf-8") as f:
-            f.write(browser.page_source)
+        if screenshot:
+            browser.save_screenshot(path + ".png")
+        if html:
+            with open(path + ".html", "w", encoding="utf-8") as f:
+                f.write(browser.page_source)
         if failed:
-            print(f"\nScreenshot saved: {path}")
+            print(f"\nFailure artifacts saved: {path}.*")
     except WebDriverException:
         pass
