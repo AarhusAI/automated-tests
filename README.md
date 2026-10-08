@@ -21,7 +21,7 @@ rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv r
 
 ## Docker
 
-The image (`.docker/app/Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any
+The image (`Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any
 local browser setup. Credentials are passed from `.env` at runtime (not baked into the image).
 
 - Build: `docker compose build`

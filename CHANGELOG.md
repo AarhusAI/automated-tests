@@ -18,15 +18,6 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - Selenium tests for login (user and builder), chat, assistants, file upload, web search and dictation.
 - `exploration/explore.py` helper for inspecting pages and writing selectors.
 
-### Changed
-
-- `AGENTS.md` reformatted to pass markdownlint.
-- README updated to describe every test and the Taskfile commands.
-- Login tests wait for the chat input to load before asserting.
-- Web search test toggles the web search tool and submits by click.
-- Upload and web search tests updated for the new Open WebUI version.
-- Docker image uses the host's UID/GID as build args so bind-mount writes are owned by the host user.
-
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
 [unreleased]: https://github.com/AarhusAI/automated-tests/compare/main...HEAD

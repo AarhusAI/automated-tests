@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 FROM python:3.13-slim-bookworm
 
 # Pull the uv binary from the official image (pin to a release for reproducibility).

@@ -44,7 +44,7 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
   - `test_document.txt` contains the code word `BANANA`.
   - `dictation_sample.wav` says "Hej med dig".
 - `exploration/`: page-inspection helper.
-- `.docker/app/`: the Dockerfile. It installs Chromium, chromedriver and Xvfb.
+- `Dockerfile`: installs Chromium, chromedriver and Xvfb.
 
 Every test directory needs an `__init__.py` so discovery and `from tests import helpers` work.
 
@@ -117,7 +117,7 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
   `SCREENSHOTS` and `HTML_DUMP`.
 - `docker-compose.yml` defines a single `tests` service. It needs `init: true`, otherwise `xvfb-run` hangs. It passes
   `UID`/`GID` build args (default 1042) and forwards `SCREENSHOTS`/`HTML_DUMP` from the shell.
-- `.docker/app/Dockerfile`:
+- `Dockerfile`:
   - Base image `python:3.13-slim-bookworm` with uv 0.11.
   - The venv is at `/opt/venv`, outside the bind mount.
   - Chromium flags `--no-sandbox --disable-dev-shm-usage` via `/etc/chromium.d/docker-flags`.
