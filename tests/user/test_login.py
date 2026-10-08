@@ -26,12 +26,14 @@ class TestUserLogin(unittest.TestCase):
         self.browser.quit()
 
     def test_login_as_user(self):
-        helpers.login(self.browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
-        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
-        helpers.wait_for_app(self.browser)
+        browser = self.browser
 
-        self.assertEqual(self.browser.current_url, os.environ["TEST_DOMAIN"])
-        WebDriverWait(self.browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
+        helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
+        helpers.wait_for_app(browser)
+
+        self.assertEqual(browser.current_url, os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
+        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
 
 if __name__ == '__main__':

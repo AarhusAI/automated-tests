@@ -32,6 +32,8 @@ class TestUserChat(unittest.TestCase):
         browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
 
+        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
+
         chat_input = browser.find_element(By.ID, "chat-input")
         chat_input.click()
         chat_input.send_keys("Say only the word: hello")

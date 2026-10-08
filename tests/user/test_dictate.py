@@ -40,6 +40,8 @@ class TestUserDictate(unittest.TestCase):
         browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
 
+        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
+
         browser.find_element(By.ID, "voice-input-button").click()
 
         confirm = WebDriverWait(browser, 5).until(
