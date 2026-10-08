@@ -30,7 +30,7 @@ class TestUserDictate(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
-        helpers.screenshot_on_failure(self, self.browser)
+        helpers.save_screenshot(self, self.browser)
         self.browser.quit()
 
     def test_user_can_dictate_into_chat_input(self):

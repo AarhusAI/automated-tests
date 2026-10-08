@@ -27,6 +27,7 @@ tasks:
   tests:
     desc: Run tests
     cmds:
+      - rm -rf screenshots/*
       - docker compose run --rm tests
 
   test:

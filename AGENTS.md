@@ -11,7 +11,8 @@ End-to-end Selenium tests for the **AarhusAI web UI**, a Danish-language chat UI
 - `tests/helpers.py`:
   - `login()` opens `TEST_DOMAIN`, fills `#email` and `#password`, clicks `button[type="submit"]`, then waits 10s for `EC.url_to_be(TEST_DOMAIN)`.
   - `wait_for_app()` waits 30s for `#splash-screen` to become invisible.
-- **Response complete** means `#stop-response-button` is invisible. Use 60s, or 120s for web search. Then read `#response-content-container`.
+- **Response complete** means the regenerate button (`helpers.REGENERATE_BUTTON`) is visible. It only renders after the answer finishes, unlike waiting for `#stop-response-button` to vanish, which passes before the button appears. Use 60s, or 120s for web search. Then read `#response-content-container`.
+- **Locale:** headless runs render the UI in English (`Regenerate`, not `Regenerer`). Setting `intl.accept_languages=da` did not change this; `da-DK` and a stored account locale were not tested. Selectors that use labels match both the Danish and the English text.
 - `exploration/explore.py` is a standalone CLI for writing selectors. It opens a page, can log in and click elements, and writes `exploration/explore_screenshot.png` and `exploration/explore_page.html`. These outputs are **not gitignored**, so do not commit them. Its `login` and `wait_for_page` functions duplicate the helpers instead of importing them.
 
 ## Key Directories

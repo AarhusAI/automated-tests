@@ -24,7 +24,7 @@ class TestUserFileUpload(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
-        helpers.screenshot_on_failure(self, self.browser)
+        helpers.save_screenshot(self, self.browser)
         self.browser.quit()
 
     def test_user_can_upload_file_and_ask_about_content(self):
@@ -53,7 +53,7 @@ class TestUserFileUpload(unittest.TestCase):
         browser.find_element(By.ID, "send-message-button").click()
 
         WebDriverWait(browser, 60).until(
-            EC.invisibility_of_element_located((By.ID, "stop-response-button"))
+            EC.visibility_of_element_located((By.CSS_SELECTOR, helpers.REGENERATE_BUTTON))
         )
 
         response = browser.find_element(By.ID, "response-content-container")
