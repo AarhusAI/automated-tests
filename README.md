@@ -79,3 +79,5 @@ toggle — before the capture:
 ```bash
 uv run python exploration/explore.py --login user --click "#integration-menu-button"
 ```
+
+Via Docker with Task (args after `--`): `task explore -- / --login user --click "#integration-menu-button"`.

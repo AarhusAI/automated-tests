@@ -36,3 +36,8 @@ tasks:
       TEST: '{{.TEST | default "tests.user.test_chat"}}'
     cmds:
       - docker compose run --rm tests python -m unittest {{.TEST}}
+
+  explore:
+    desc: Run exploration script (task explore -- <url_path> --login user --click "#sel")
+    cmds:
+      - docker compose run --rm tests python exploration/explore.py {{.CLI_ARGS}}
