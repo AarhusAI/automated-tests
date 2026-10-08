@@ -22,13 +22,14 @@ class TestUserWebSearch(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
-        helpers.screenshot_on_failure(self, self.browser)
+        helpers.save_screenshot(self, self.browser)
         self.browser.quit()
 
     def test_user_can_enable_web_search_and_find_mayor_of_aarhus(self):
         browser = self.browser
 
         helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=BA-gpt-oss-120b")
         helpers.wait_for_app(browser)
 
         browser.find_element(By.ID, "integration-menu-button").click()
@@ -36,7 +37,7 @@ class TestUserWebSearch(unittest.TestCase):
         WebDriverWait(browser, 5).until(
             EC.element_to_be_clickable((
                 By.XPATH,
-                "//button[contains(normalize-space(.), 'Værktøjer')]",
+                "//button[contains(normalize-space(.), 'Værktøjer') or contains(normalize-space(.), 'Tools')]",
             ))
         ).click()
 
@@ -63,7 +64,7 @@ class TestUserWebSearch(unittest.TestCase):
 
         WebDriverWait(browser, 120).until(
             lambda d: d.find_element(By.ID, "response-content-container").text.strip() != ""
-            and not d.find_elements(By.ID, "stop-response-button")
+            and d.find_elements(By.CSS_SELECTOR, helpers.REGENERATE_BUTTON)
         )
 
         response = browser.find_element(By.ID, "response-content-container").text

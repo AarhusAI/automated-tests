@@ -25,11 +25,19 @@ tasks:
       - docker compose build
 
   tests:
-    desc: Run tests
+    desc: Run tests (toggles via shell env, e.g. HTML_DUMP=1 task tests, SCREENSHOTS=0 task tests)
     cmds:
+      - rm -rf screenshots/*
       - docker compose run --rm tests
 
   test:
-    desc: Run single test
+    desc: Run single test module/method (task test TEST=tests.user.test_chat; same env toggles)
+    vars:
+      TEST: '{{.TEST | default "tests.user.test_chat"}}'
     cmds:
-      - docker compose run --rm tests python -m unittest tests.user.test_chat
+      - docker compose run --rm tests python -m unittest {{.TEST}}
+
+  explore:
+    desc: Run exploration script (task explore -- <url_path> --login user --click "#sel")
+    cmds:
+      - docker compose run --rm tests python exploration/explore.py {{.CLI_ARGS}}

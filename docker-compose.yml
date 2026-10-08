@@ -12,6 +12,10 @@ services:
     # waiting for Xvfb's readiness signal.
     init: true
     env_file: .env
+    # Forwarded from the host only when set (e.g. SCREENSHOTS=0 task tests).
+    environment:
+      - SCREENSHOTS
+      - HTML_DUMP
     volumes:
       - .:/app
 #    shm_size: 2gb  

@@ -30,14 +30,17 @@ class TestUserDictate(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
-        helpers.screenshot_on_failure(self, self.browser)
+        helpers.save_screenshot(self, self.browser)
         self.browser.quit()
 
     def test_user_can_dictate_into_chat_input(self):
         browser = self.browser
 
         helpers.login(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         helpers.wait_for_app(browser)
+
+        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
         browser.find_element(By.ID, "voice-input-button").click()
 

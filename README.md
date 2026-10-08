@@ -8,8 +8,11 @@ Selenium-based end-to-end tests for the AarhusAI web UI.
 2. Install dependencies (uv): `uv sync`.
 3. Run all tests: `uv run python -m unittest`.
 
-When a test fails or errors, a screenshot of the browser is saved to `screenshots/<test id>.png` (gitignored,
-overwritten on each run). In Docker it lands in `./screenshots/` on the host via the bind mount.
+After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
+(gitignored, overwritten on each run). In Docker it lands in `./screenshots/` on the host via the bind mount.
+Toggle via env (`.env` or inline): `SCREENSHOTS=0` disables screenshots (default on); `HTML_DUMP=1` also saves the
+rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run python -m unittest` or
+`HTML_DUMP=1 task tests` (docker-compose forwards both from the shell).
 
 ## Docker
 
@@ -76,3 +79,5 @@ toggle — before the capture:
 ```bash
 uv run python exploration/explore.py --login user --click "#integration-menu-button"
 ```
+
+Via Docker with Task (args after `--`): `task explore -- / --login user --click "#integration-menu-button"`.

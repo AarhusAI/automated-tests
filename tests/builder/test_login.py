@@ -3,6 +3,9 @@ import unittest
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import dotenv
 
 from tests import helpers
@@ -19,13 +22,18 @@ class TestBuilderLogin(unittest.TestCase):
         self.browser.implicitly_wait(5)
 
     def tearDown(self):
-        helpers.screenshot_on_failure(self, self.browser)
+        helpers.save_screenshot(self, self.browser)
         self.browser.quit()
 
     def test_login_as_builder(self):
-        helpers.login(self.browser, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
+        browser = self.browser
 
-        self.assertEqual(self.browser.current_url, os.environ["TEST_DOMAIN"])
+        helpers.login(browser, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
+        browser.get(os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
+        helpers.wait_for_app(browser)
+
+        self.assertEqual(browser.current_url, os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
+        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
 
 if __name__ == '__main__':
