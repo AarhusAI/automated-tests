@@ -8,15 +8,18 @@ screenshot and page source for inspection.
 """
 
 import os
+import sys
 import time
 import argparse
 
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import dotenv
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_HERE))  # make `tests` importable when run as a script
+from tests import helpers  # noqa: E402
 
 dotenv.load_dotenv()
 
@@ -25,34 +28,8 @@ CREDENTIALS = {
     "user":    ("USER_USERNAME",    "USER_PASSWORD")
 }
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_SCREENSHOT = os.path.join(_HERE, "explore_screenshot.png")
 OUTPUT_HTML       = os.path.join(_HERE, "explore_page.html")
-
-
-def make_browser():
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--window-size=1920,1080")
-    browser = Chrome(options=options)
-    browser.implicitly_wait(5)
-    return browser
-
-
-def login(browser, role):
-    domain = os.environ["TEST_DOMAIN"]
-    u_key, p_key = CREDENTIALS[role]
-    browser.get(domain)
-    browser.find_element(value="email").send_keys(os.environ[u_key])
-    browser.find_element(value="password").send_keys(os.environ[p_key])
-    browser.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
-    WebDriverWait(browser, 10).until(EC.url_to_be(domain))
-
-
-def wait_for_page(browser):
-    WebDriverWait(browser, 30).until(
-        EC.invisibility_of_element_located((By.ID, "splash-screen"))
-    )
 
 
 def click(browser, selector):
@@ -89,12 +66,13 @@ def main():
     domain = os.environ["TEST_DOMAIN"].rstrip("/")
     target = f"{domain}/{args.path.lstrip('/')}" if args.path else domain
 
-    browser = make_browser()
+    browser = helpers.new_browser("--headless")
     try:
         if args.login:
-            login(browser, args.login)
+            u_key, p_key = CREDENTIALS[args.login]
+            helpers.login(browser, os.environ[u_key], os.environ[p_key])
         browser.get(target)
-        wait_for_page(browser)
+        helpers.wait_for_app(browser)
         for selector in args.click:
             click(browser, selector)
         save_outputs(browser)

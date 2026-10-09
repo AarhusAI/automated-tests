@@ -1,12 +1,25 @@
 import os
+import unittest
 
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 # UI language depends on account/locale, not the browser; match both.
 REGENERATE_BUTTON = 'button[aria-label="Regenerer"], button[aria-label="Regenerate"]'
+
+
+def new_browser(*args):
+    options = Options()
+    options.add_argument("--window-size=1920,1080")
+    for arg in args:
+        options.add_argument(arg)
+    browser = Chrome(options=options)
+    browser.implicitly_wait(5)
+    return browser
 
 
 def login(browser, username, password):
@@ -24,7 +37,10 @@ def wait_for_app(browser):
     )
 
 
-SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "..", "screenshots")
+def open_chat(browser, username, password, model="aarhusai-start"):
+    login(browser, username, password)
+    browser.get(os.environ["TEST_DOMAIN"] + "?model=" + model)
+    wait_for_app(browser)
 
 
 def save_screenshot(test, browser):
@@ -36,7 +52,7 @@ def save_screenshot(test, browser):
     # ponytail: reads unittest's private _outcome; no public "did this test fail" API in tearDown
     result = test._outcome.result
     failed = any(t is test for t, _ in result.errors + result.failures)
-    directory = os.path.join(SCREENSHOT_DIR, "failed" if failed else "success")
+    directory = os.path.join(os.path.dirname(__file__), "..", "screenshots", "failed" if failed else "success")
     os.makedirs(directory, exist_ok=True)
     path = os.path.abspath(os.path.join(directory, test.id()))
     try:
@@ -49,3 +65,14 @@ def save_screenshot(test, browser):
             print(f"\nFailure artifacts saved: {path}.*")
     except WebDriverException:
         pass
+
+
+class BrowserTestCase(unittest.TestCase):
+    chrome_args = ("--headless",)
+
+    def setUp(self):
+        self.browser = new_browser(*self.chrome_args)
+
+    def tearDown(self):
+        save_screenshot(self, self.browser)
+        self.browser.quit()

@@ -12,15 +12,19 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
 - **Driver:** synchronous Selenium using `selenium.webdriver.Chrome`. There is no async code and no Playwright.
 - **Config:** `.env` is read by `dotenv.load_dotenv()` at the top of each test module. In Docker it is passed with
   `env_file: .env`.
-- **Flow of a test:** `setUp` creates Chrome → `helpers.login(browser, user, pw)` →
-  `browser.get(TEST_DOMAIN + "?model=aarhusai-start")` → `helpers.wait_for_app(browser)` → interact with the UI →
-  wait for the response to finish → `self.assert*` → `tearDown` calls `helpers.save_screenshot(self, browser)` then
-  `browser.quit()`.
+- **Flow of a test:** `helpers.BrowserTestCase.setUp` creates Chrome → `helpers.open_chat(browser, user, pw)`
+  (login, open `?model=aarhusai-start`, wait for the app) → interact with the UI → wait for the response to finish →
+  `self.assert*` → `tearDown` saves a screenshot and quits the browser.
 - **Model:** every test opens `?model=aarhusai-start` after login; `test_web_search` opens `?model=BA-gpt-oss-120b`.
 - `tests/helpers.py`:
+  - `BrowserTestCase` is the base class for every test. `setUp` builds Chrome from `chrome_args` (default
+    `("--headless",)`) via `new_browser()`, `tearDown` calls `save_screenshot` and `browser.quit()`.
+  - `new_browser(*args)` creates Chrome with `--window-size=1920,1080` plus `args` and `implicitly_wait(5)`.
   - `login()` opens `TEST_DOMAIN`, fills `#email` and `#password`, clicks `button[type="submit"]`, then waits 10s
     for `EC.url_to_be(TEST_DOMAIN)`.
   - `wait_for_app()` waits 30s for `#splash-screen` to become invisible.
+  - `open_chat(browser, user, pw, model="aarhusai-start")` runs `login`, opens `?model=<model>` and calls
+    `wait_for_app`.
   - `save_screenshot()` writes `screenshots/{success,failed}/<test id>.png` (`SCREENSHOTS=0` disables, default on)
     and optionally `.html` (`HTML_DUMP=1`, default off). It reads unittest's private `_outcome` to detect failure.
     `screenshots/` is gitignored.
@@ -32,8 +36,7 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
   that use labels match both the Danish and the English text.
 - `exploration/explore.py` is a standalone CLI for writing selectors. It opens a page, can log in and click
   elements, and writes `exploration/explore_screenshot.png` and `exploration/explore_page.html`. These outputs are
-  **not gitignored**, so do not commit them. Its `login` and `wait_for_page` functions duplicate the helpers instead
-  of importing them.
+  **not gitignored**, so do not commit them. It inserts the repo root into `sys.path` and reuses `tests.helpers`.
 
 ## Key Directories
 
@@ -84,13 +87,14 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
   - Files: `tests/<role>/test_<feature>.py`.
   - Classes: `Test<Role><Feature>`, e.g. `TestUserChat` or `TestBuilderLogin`.
   - Methods: `test_<role>_can_<action>...` or `test_login_as_<role>`.
-- **Boilerplate is copied into each module, not shared.** Follow `tests/user/test_chat.py`:
-  - `setUp` uses `Options()` with `--headless` and `--window-size=1920,1080`, then `implicitly_wait(5)`.
-  - `tearDown` calls `helpers.save_screenshot(self, self.browser)` and then `browser.quit()`.
+- **Subclass `helpers.BrowserTestCase`.** Follow `tests/user/test_chat.py`:
+  - Do not write `setUp`/`tearDown`. Override `chrome_args` only when the browser needs other flags
+    (`test_dictate` drops `--headless` and adds the fake-media flags).
+  - Start each test with `helpers.open_chat(browser, user, pw)`; pass `model=` to open another model.
   - The module ends with `if __name__ == "__main__": unittest.main()`.
 - **Credentials:** read them as `os.environ["USER_USERNAME"]`, `os.environ["USER_PASSWORD"]`,
   `os.environ["BUILDER_USERNAME"]` and `os.environ["BUILDER_PASSWORD"]`. Never hardcode them.
-- **Login tests** open `?model=aarhusai-start`, call `wait_for_app`, then assert
+- **Login tests** call `open_chat`, then assert
   `browser.current_url == os.environ["TEST_DOMAIN"] + "?model=aarhusai-start"` and wait for `#chat-input-container`
   to be visible. All other tests also call `wait_for_app` after login.
 - **Selectors:**
@@ -109,7 +113,8 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
 
 ## Important Files
 
-- `tests/helpers.py`: the shared `login`, `wait_for_app`, `save_screenshot` and `REGENERATE_BUTTON`.
+- `tests/helpers.py`: the shared `BrowserTestCase`, `new_browser`, `login`, `wait_for_app`, `open_chat`,
+  `save_screenshot` and `REGENERATE_BUTTON`.
 - `tests/user/test_chat.py`: the reference test template.
 - `tests/user/test_dictate.py`: the only non-headless test. It uses Chrome fake-media flags plus
   `--use-file-for-fake-audio-capture`, so it needs a display (Xvfb in Docker).
