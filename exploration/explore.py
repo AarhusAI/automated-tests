@@ -1,6 +1,6 @@
 """
 Exploration helper for writing Selenium tests.
-Usage: python explore.py <url_path> [--login builder|user] [--click <selector> ...]
+Usage: python explore.py <url_path> [--login admin|builder|user] [--click <selector> ...]
 
 Navigates to TEST_DOMAIN+url_path, optionally logs in first, optionally
 clicks elements (e.g. to open a menu or flip a toggle), then saves a
@@ -24,6 +24,7 @@ from tests import helpers  # noqa: E402
 dotenv.load_dotenv()
 
 CREDENTIALS = {
+    "admin":   ("ADMIN_USERNAME",   "ADMIN_PASSWORD"),
     "builder": ("BUILDER_USERNAME", "BUILDER_PASSWORD"),
     "user":    ("USER_USERNAME",    "USER_PASSWORD")
 }

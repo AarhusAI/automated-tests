@@ -10,8 +10,13 @@ Selenium-based end-to-end tests for the AarhusAI web UI.
 3. Run all tests: `uv run python -m unittest`, or a single module/method:
    `uv run python -m unittest tests.user.test_chat`.
 
-Every test logs in, then opens `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
-before interacting with the UI.
+Most tests log in, then open `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
+before interacting with the UI. The workspace tests open `TEST_DOMAIN/workspace/...` instead.
+
+Tests that create data name it `autotest-*` (`autotest-knowledge`, `autotest-specialist`) and delete every
+`autotest-*` model and knowledge base of the builder account, with their files, before and after the test. Created
+specialists are shared with the group in `SHARE_GROUP` (default `Builder`); the user account must be a member of it.
+The admin tests are skipped unless `ADMIN_USERNAME` is set.
 
 After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
 (gitignored, overwritten on each run). In Docker, it lands in `./screenshots/` on the host via the bind mount.
@@ -52,12 +57,44 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 ## Tests
 
+### Admin
+
+#### [tests/admin/test_login.py](tests/admin/test_login.py)
+
+- **`test_login_as_admin`** — logs in with admin credentials, asserts the same as the other login tests, then opens
+  `/admin/settings` and asserts it is not redirected away within 5 s. Skipped when `ADMIN_USERNAME` is unset.
+
 ### Builder
 
 #### [tests/builder/test_login.py](tests/builder/test_login.py)
 
 - **`test_login_as_builder`** — logs in with builder credentials, opens `?model=aarhusai-start` and asserts the URL
   matches and the chat input is displayed.
+
+#### [tests/builder/test_workspace_models.py](tests/builder/test_workspace_models.py)
+
+- **`test_builder_can_search_models`** — searches `/workspace/models` for "AarhusAI start" and asserts the row list
+  shrinks and still shows the AarhusAI start row.
+- **`test_builder_can_see_import_and_export`** — opens the create menu and asserts `Import JSON` and `Export JSON`
+  are clickable.
+
+#### [tests/builder/test_create_knowledge.py](tests/builder/test_create_knowledge.py)
+
+- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base, uploads
+  `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains "BANANA".
+
+#### [tests/builder/test_create_model.py](tests/builder/test_create_model.py)
+
+- **`test_builder_can_create_and_share_specialist`** — creates `autotest-knowledge`, then the `autotest-specialist`
+  model on `BA-gpt-oss-120b` with that knowledge, shared with `SHARE_GROUP`, and asserts the workspace search finds
+  it.
+
+#### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
+
+- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge` and
+  `autotest-specialist`; in a second browser the user asks the specialist for the code word and gets "BANANA". The
+  builder then deletes the file from the knowledge base, and the user asks again in a new chat and must not get
+  "BANANA" (retried once for index lag). Runs two browsers and takes a few minutes.
 
 ### User
 
@@ -92,6 +129,21 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 - **`test_user_can_dictate_into_chat_input`** — pipes `tests/fixtures/dictation_sample.wav` into Chrome's fake
   microphone, clicks the voice input button, confirms the recording, and asserts the transcribed text "Hej med dig"
   appears in the chat input. Runs non-headless, so it needs a display (Xvfb in Docker).
+
+#### [tests/user/test_tools.py](tests/user/test_tools.py)
+
+- **`test_user_can_see_available_tools`** — opens the integration menu, opens Værktøjer and asserts websearch,
+  eventdatabase, retsinformation, EU founding portal and Office documents are listed.
+
+#### [tests/user/test_upload_menu.py](tests/user/test_upload_menu.py)
+
+- **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item and no
+  `#camera-input`.
+
+#### [tests/user/test_tts.py](tests/user/test_tts.py)
+
+- **`test_user_can_read_response_aloud`** — sends a prompt, clicks Read Aloud on the response and asserts the
+  `/api/v1/audio/speech` request returned 200.
 
 ## Exploration
 

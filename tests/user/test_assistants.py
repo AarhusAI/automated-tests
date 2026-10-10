@@ -1,9 +1,6 @@
 import os
 import unittest
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import dotenv
 
 from tests import helpers
@@ -23,16 +20,7 @@ class TestUserAssistants(helpers.BrowserTestCase):
         browser = self.browser
         helpers.open_chat(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
 
-        chat_input = browser.find_element(By.ID, "chat-input")
-        chat_input.click()
-        chat_input.send_keys("Hvilke assistenter kan jeg få adgang til?")
-        browser.find_element(By.ID, "send-message-button").click()
-
-        WebDriverWait(browser, 60).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, helpers.REGENERATE_BUTTON))
-        )
-
-        response = browser.find_element(By.ID, "response-content-container").text
+        response = helpers.send_prompt(browser, "Hvilke assistenter kan jeg få adgang til?")
         for assistant in EXPECTED_ASSISTANTS:
             self.assertIn(assistant, response)
 

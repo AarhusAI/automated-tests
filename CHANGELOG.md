@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Added
 
+- Tests for tools listing, no image capture in the upload menu, read aloud (TTS), workspace model search and
+  import/export, knowledge creation with upload, specialist creation and sharing, knowledge deletion end to end, and
+  admin login.
+- `helpers.send_prompt`, `create_knowledge`, `create_model` and `delete_test_data` (API cleanup of `autotest-*` data).
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD` and `SHARE_GROUP` in `.env.example`; `admin` login in `exploration/explore.py`.
 - GitHub Actions workflows for markdownlint and changelog checks, plus markdownlint config.
 - `AGENTS.md` with repository guidelines for coding agents.
 - Taskfile with `setup`, `build`, `tests`, `test`, `explore` and `lint` tasks.
