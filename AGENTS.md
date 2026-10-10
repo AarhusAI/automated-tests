@@ -14,17 +14,27 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
   `env_file: .env`.
 - **Flow of a test:** `helpers.BrowserTestCase.setUp` creates Chrome → `helpers.open_chat(browser, user, pw)`
   (login, open `?model=aarhusai-start`, wait for the app) → interact with the UI → wait for the response to finish →
-  `self.assert*` → `tearDown` saves a screenshot and quits the browser.
-- **Model:** every test opens `?model=aarhusai-start` after login; `test_web_search` opens `?model=BA-gpt-oss-120b`.
+  `self.assert*` → `tearDown` saves a screenshot, then cleanups run (data cleanup first, `browser.quit()` last).
+- **Model:** chat tests open `?model=aarhusai-start` after login; `test_web_search` opens `?model=BA-gpt-oss-120b`.
+  Workspace tests call `login` then `open_page(browser, "workspace/...")`.
 - `tests/helpers.py`:
   - `BrowserTestCase` is the base class for every test. `setUp` builds Chrome from `chrome_args` (default
-    `("--headless",)`) via `new_browser()`, `tearDown` calls `save_screenshot` and `browser.quit()`.
+    `("--headless",)`) via `new_browser()` and registers `browser.quit()` with `addCleanup`, so cleanups a test
+    registers later still have a live browser. `tearDown` calls `save_screenshot`.
   - `new_browser(*args)` creates Chrome with `--window-size=1920,1080` plus `args` and `implicitly_wait(5)`.
   - `login()` opens `TEST_DOMAIN`, fills `#email` and `#password`, clicks `button[type="submit"]`, then waits 10s
     for `EC.url_to_be(TEST_DOMAIN)`.
-  - `wait_for_app()` waits 30s for `#splash-screen` to become invisible.
+  - `wait_for_app()` waits 30s for `#splash-screen` to become invisible, then removes the `#itk-feedback` widget
+    (it intercepts clicks on row menus).
   - `open_chat(browser, user, pw, model="aarhusai-start")` runs `login`, opens `?model=<model>` and calls
-    `wait_for_app`.
+    `wait_for_app`. `open_page(browser, path)` opens `TEST_DOMAIN + path` and calls `wait_for_app`.
+  - `send_prompt(browser, text, timeout=60)` sends a prompt, waits for the response to finish and returns its text.
+  - `create_knowledge(browser, name, file_path)` and `create_model(browser, name, knowledge)` run the workspace
+    create flows through the UI. Specialists use base model `BASE_MODEL` and are shared with env `SHARE_GROUP`
+    (default `Builder`).
+  - `api(browser, method, path, body=None)` calls the Open WebUI API with the browser's token. Use it **only for
+    cleanup**; `delete_test_data(browser)` deletes the logged-in user's `autotest-*` models and knowledge bases with
+    their files. Tests that create data call it after login and register it with `self.addCleanup`.
   - `save_screenshot()` writes `screenshots/{success,failed}/<test id>.png` (`SCREENSHOTS=0` disables, default on)
     and optionally `.html` (`HTML_DUMP=1`, default off). It reads unittest's private `_outcome` to detect failure.
     `screenshots/` is gitignored.
@@ -41,8 +51,10 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
 ## Key Directories
 
 - `tests/user/`: tests for the normal-user role: `test_login`, `test_chat`, `test_assistants`, `test_file_upload`,
-  `test_web_search`, `test_dictate`.
-- `tests/builder/`: tests for the builder role (`test_login`).
+  `test_web_search`, `test_dictate`, `test_tools`, `test_upload_menu`, `test_tts`.
+- `tests/builder/`: tests for the builder role: `test_login`, `test_workspace_models`, `test_create_knowledge`,
+  `test_create_model`, `test_knowledge_deletion` (two browsers: builder and user).
+- `tests/admin/`: tests for the admin role (`test_login`), skipped unless `ADMIN_USERNAME` is set.
 - `tests/fixtures/`:
   - `test_document.txt` contains the code word `BANANA`.
   - `dictation_sample.wav` says "Hej med dig".
@@ -114,12 +126,13 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
 ## Important Files
 
 - `tests/helpers.py`: the shared `BrowserTestCase`, `new_browser`, `login`, `wait_for_app`, `open_chat`,
-  `save_screenshot` and `REGENERATE_BUTTON`.
+  `open_page`, `send_prompt`, `create_knowledge`, `create_model`, `api`, `delete_test_data`, `save_screenshot` and
+  `REGENERATE_BUTTON`.
 - `tests/user/test_chat.py`: the reference test template.
 - `tests/user/test_dictate.py`: the only non-headless test. It uses Chrome fake-media flags plus
   `--use-file-for-fake-audio-capture`, so it needs a display (Xvfb in Docker).
 - `.env.example` defines `TEST_DOMAIN`, `BUILDER_USERNAME`, `BUILDER_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`,
-  `SCREENSHOTS` and `HTML_DUMP`.
+  `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SHARE_GROUP`, `SCREENSHOTS` and `HTML_DUMP`.
 - `docker-compose.yml` defines a single `tests` service. It needs `init: true`, otherwise `xvfb-run` hangs. It passes
   `UID`/`GID` build args (default 1042) and forwards `SCREENSHOTS`/`HTML_DUMP` from the shell.
 - `Dockerfile`:
