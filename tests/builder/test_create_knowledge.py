@@ -20,11 +20,17 @@ class TestBuilderCreateKnowledge(helpers.BrowserTestCase):
 
         helpers.create_knowledge(browser, "autotest-knowledge", FIXTURE_FILE)
 
-        browser.find_element(*helpers.knowledge_file_row(FIXTURE_FILE)).click()
-        # The preview re-renders while loading, so query it fresh on every poll.
-        WebDriverWait(browser, 10).until(lambda d: d.execute_script(
-            "return document.querySelector('textarea[aria-label=\"File content\"]')?.value.includes('BANANA');"
-        ))
+        # Clicking the file before the server has processed it opens nothing; the row looks the same either way,
+        # so click again on each poll until the preview shows. Query it fresh since it re-renders while loading.
+        def preview_has_code_word(d):
+            if d.execute_script(
+                "return document.querySelector('textarea[aria-label=\"File content\"]')?.value.includes('BANANA');"
+            ):
+                return True
+            d.find_element(*helpers.knowledge_file_row(FIXTURE_FILE)).click()
+            return False
+
+        WebDriverWait(browser, 30, poll_frequency=2).until(preview_has_code_word)
 
 
 if __name__ == "__main__":

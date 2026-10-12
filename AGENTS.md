@@ -23,15 +23,17 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
     registers later still have a live browser. `tearDown` calls `save_screenshot`.
   - `new_browser(*args)` creates Chrome with `--window-size=1920,1080` plus `args` and `implicitly_wait(5)`.
   - `login()` opens `TEST_DOMAIN`, fills `#email` and `#password`, clicks `button[type="submit"]`, then waits 10s
-    for `EC.url_to_be(TEST_DOMAIN)`.
+    for `EC.url_to_be(TEST_DOMAIN)` and calls `wait_for_app`. Without that wait, workspace URLs opened right after
+    login redirect to `/`.
   - `wait_for_app()` waits 30s for `#splash-screen` to become invisible, then removes the `#itk-feedback` widget
     (it intercepts clicks on row menus).
   - `open_chat(browser, user, pw, model="aarhusai-start")` runs `login`, opens `?model=<model>` and calls
     `wait_for_app`. `open_page(browser, path)` opens `TEST_DOMAIN + path` and calls `wait_for_app`.
   - `send_prompt(browser, text, timeout=60)` sends a prompt, waits for the response to finish and returns its text.
   - `create_knowledge(browser, name, file_path)` and `create_model(browser, name, knowledge)` run the workspace
-    create flows through the UI. Specialists use base model `BASE_MODEL` and are shared with env `SHARE_GROUP`
-    (default `Builder`).
+    create flows through the UI. Specialists use base model env `BASE_MODEL` (default `AarhusAI-default-v2`), get
+    tag `MODEL_TAG`, description `MODEL_DESCRIPTION`, system prompt `MODEL_SYSTEM_PROMPT` and the `websearch` tool,
+    and are shared with env `SHARE_GROUP` (default `Builder`).
   - `api(browser, method, path, body=None)` calls the Open WebUI API with the browser's token. Use it **only for
     cleanup**; `delete_test_data(browser)` deletes the logged-in user's `autotest-*` models and knowledge bases with
     their files. Tests that create data call it after login and register it with `self.addCleanup`.
@@ -133,7 +135,7 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
 - `tests/user/test_dictate.py`: the only non-headless test. It uses Chrome fake-media flags plus
   `--use-file-for-fake-audio-capture`, so it needs a display (Xvfb in Docker).
 - `.env.example` defines `TEST_DOMAIN`, `BUILDER_USERNAME`, `BUILDER_PASSWORD`, `USER_USERNAME`, `USER_PASSWORD`,
-  `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SHARE_GROUP`, `SCREENSHOTS` and `HTML_DUMP`.
+  `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SHARE_GROUP`, `BASE_MODEL`, `SCREENSHOTS` and `HTML_DUMP`.
 - `docker-compose.yml` defines a single `tests` service. It needs `init: true`, otherwise `xvfb-run` hangs. It passes
   `UID`/`GID` build args (default 1042) and forwards `SCREENSHOTS`/`HTML_DUMP` from the shell.
 - `Dockerfile`:

@@ -13,8 +13,11 @@ from selenium.webdriver.support import expected_conditions as EC
 # UI language depends on account/locale, not the browser; match both.
 REGENERATE_BUTTON = 'button[aria-label="Regenerer"], button[aria-label="Regenerate"]'
 
-# Base model for created specialists.
-BASE_MODEL = "BA-gpt-oss-120b"
+# Fields create_model fills in; env BASE_MODEL overrides the base model.
+DEFAULT_BASE_MODEL = "AarhusAI-default-v2"
+MODEL_DESCRIPTION = "Automated test specialist"
+MODEL_TAG = "autotest-tag"
+MODEL_SYSTEM_PROMPT = "Answer questions using the attached knowledge. Be brief."
 
 
 def new_browser(*args):
@@ -34,6 +37,8 @@ def login(browser, username, password):
     browser.find_element(value="password").send_keys(password)
     browser.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
     WebDriverWait(browser, 10).until(EC.url_to_be(domain))
+    # Navigating before the app has loaded the session bounces workspace pages back to "/".
+    wait_for_app(browser)
 
 
 def wait_for_app(browser):
@@ -91,17 +96,23 @@ def knowledge_file_row(file_path):
 
 
 def create_model(browser, name, knowledge):
-    """Create a specialist on BASE_MODEL with `knowledge` attached, shared read-only with a group.
+    """Create a specialist on env BASE_MODEL (default "AarhusAI-default-v2") with `knowledge` and the `websearch`
+    tool attached, tagged `autotest-tag`, shared read-only with a group.
 
     The group is env SHARE_GROUP (default "Builder"); the user account must be a member to see the specialist.
     """
     group = os.environ.get("SHARE_GROUP", "Builder")
+    base_model = os.environ.get("BASE_MODEL", DEFAULT_BASE_MODEL)
     open_page(browser, "workspace/models/create")
     browser.find_element(By.ID, "model-selector-workspace-base-model-button").click()
-    browser.find_element(By.CSS_SELECTOR, f'button[aria-label="Select {BASE_MODEL} model"]').click()
+    browser.find_element(By.CSS_SELECTOR, f'button[aria-label="Select {base_model} model"]').click()
 
     browser.find_element(By.XPATH, "//*[normalize-space(text())='Select Knowledge']").click()
     browser.find_element(By.XPATH, f"//button[.//*[normalize-space(text())='{knowledge}']]").click()
+
+    browser.find_element(By.XPATH, "//*[normalize-space(text())='Select Tool']").click()
+    browser.find_element(By.XPATH, "//button[span[normalize-space()='websearch']]").click()
+    browser.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
 
     browser.find_element(By.XPATH, "//button[normalize-space()='Access']").click()
     browser.find_element(By.XPATH, "//button[normalize-space()='Add Access']").click()
@@ -119,10 +130,11 @@ def create_model(browser, name, knowledge):
     browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Model Name"]').send_keys(name)
     browser.find_element(
         By.CSS_SELECTOR, 'textarea[aria-label^="Add a short description"]'
-    ).send_keys("Automated test specialist")
+    ).send_keys(MODEL_DESCRIPTION)
+    browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Add a tag..."]').send_keys(MODEL_TAG, Keys.ENTER)
     browser.find_element(
         By.CSS_SELECTOR, 'textarea[aria-label^="Write your model system prompt"]'
-    ).send_keys("Answer questions using the attached knowledge. Be brief.")
+    ).send_keys(MODEL_SYSTEM_PROMPT)
     save = browser.find_element(By.XPATH, "//button[normalize-space()='Save & Create']")
     browser.execute_script("arguments[0].scrollIntoView()", save)
     save.click()

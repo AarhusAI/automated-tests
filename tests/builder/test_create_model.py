@@ -28,6 +28,28 @@ class TestBuilderCreateModel(helpers.BrowserTestCase):
             EC.visibility_of_element_located((By.ID, "model-item-autotest-specialist"))
         )
 
+        # The edit page shows every field create_model set.
+        helpers.open_page(browser, "workspace/models/edit?id=autotest-specialist")
+        self.assertEqual(
+            browser.find_element(By.ID, "model-selector-workspace-base-model-button").text,
+            os.environ.get("BASE_MODEL", helpers.DEFAULT_BASE_MODEL),
+        )
+        self.assertEqual(
+            browser.find_element(
+                By.CSS_SELECTOR, 'textarea[aria-label^="Add a short description"]'
+            ).get_attribute("value"),
+            helpers.MODEL_DESCRIPTION,
+        )
+        self.assertEqual(
+            browser.find_element(
+                By.CSS_SELECTOR, 'textarea[aria-label^="Write your model system prompt"]'
+            ).get_attribute("value"),
+            helpers.MODEL_SYSTEM_PROMPT,
+        )
+        browser.find_element(By.XPATH, f"//button[span[normalize-space()='{helpers.MODEL_TAG}']]")
+        tools = browser.find_element(By.XPATH, "//div[normalize-space(text())='Tools']/../..")
+        self.assertIn("Websearch", tools.text)
+
 
 if __name__ == "__main__":
     unittest.main()

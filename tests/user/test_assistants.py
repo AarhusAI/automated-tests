@@ -20,6 +20,7 @@ class TestUserAssistants(helpers.BrowserTestCase):
         browser = self.browser
         helpers.open_chat(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
 
+        self.assertEqual(browser.current_url, os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         response = helpers.send_prompt(browser, "Hvilke assistenter kan jeg få adgang til?")
         for assistant in EXPECTED_ASSISTANTS:
             self.assertIn(assistant, response)

@@ -87,8 +87,9 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 #### [tests/builder/test_create_model.py](tests/builder/test_create_model.py)
 
 - **`test_builder_can_create_and_share_specialist`** — creates `autotest-knowledge`, then the `autotest-specialist`
-  model on `BA-gpt-oss-120b` with that knowledge, shared with `SHARE_GROUP`, and asserts the workspace search finds
-  it.
+  model on `BASE_MODEL` (default `AarhusAI-default-v2`) with that knowledge, a description, the tag `autotest-tag`, a
+  system prompt and the `websearch` tool, shared with `SHARE_GROUP`. Asserts the workspace search finds it and its
+  edit page shows every field.
 
 #### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
 
@@ -138,8 +139,8 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 #### [tests/user/test_upload_menu.py](tests/user/test_upload_menu.py)
 
-- **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item and no
-  `#camera-input`.
+- **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item. (The hidden
+  `#camera-input` is always in the DOM, so it is not checked.)
 
 #### [tests/user/test_tts.py](tests/user/test_tts.py)
 
@@ -158,3 +159,35 @@ uv run python exploration/explore.py --login user --click "#integration-menu-but
 ```
 
 Via Docker with Task (args after `--`): `task explore -- / --login user --click "#integration-menu-button"`.
+
+## Recording a flow
+
+To create or update a test from clicks in a browser, record the flow with Chrome's built-in DevTools Recorder and
+translate the export into a test. Nothing needs to be installed.
+
+1. Open `TEST_DOMAIN` in Chrome and log in as the role the test should use.
+2. Open DevTools (F12) → **Recorder** panel → **Create a new recording**, click through the flow, then stop.
+3. **Export** the recording as JSON. Every step lists selector candidates: `#id`, `aria/...`, `text/...` and
+   `xpath/...`.
+4. Translate the steps into a test (or paste the JSON to an AI assistant and ask for the translation):
+   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, class `Test<Role><Feature>`,
+     method `test_<role>_can_<action>`.
+   - Existing test: compare the recorded selectors and step order with the test and patch only what changed.
+   - Login and navigation steps → `helpers.open_chat(browser, user, pw)`, or `helpers.login` plus
+     `helpers.open_page(browser, "workspace/...")`.
+   - Click steps → prefer the `#id` candidate with `By.ID`; otherwise XPath on the visible text with
+     `normalize-space`, matching both the Danish and the English label.
+   - Typing a prompt and waiting for the answer → `helpers.send_prompt(browser, text)`, then assert on a key
+     substring of the response, never on the exact text.
+   - Toggles keep their state per user, so check `aria-pressed` before clicking.
+   - Drop `setViewport`, `scroll` and timing steps; wait with `WebDriverWait`, not `time.sleep`.
+5. Run it: `uv run python -m unittest tests.<role>.test_<feature>` and check `screenshots/success/<test id>.png`.
+6. Add or update the entry under [Tests](#tests) and `CHANGELOG.md`.
+
+### Firefox
+
+Firefox has no built-in recorder. Install the [Selenium IDE](https://www.selenium.dev/selenium-ide/) add-on
+(also available for Chrome), record the flow and export it as **Python pytest**. The export uses raw
+`webdriver.Chrome()` calls and css-path or XPath selectors, so translate it with the same rules as above:
+replace the browser setup and login with the helpers, and swap generated selectors for `By.ID` or visible-text XPath
+where possible.

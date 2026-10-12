@@ -25,7 +25,6 @@ class TestUserUploadMenu(helpers.BrowserTestCase):
         self.assertFalse(browser.find_elements(
             By.XPATH, "//*[normalize-space(text())='Capture' or normalize-space(text())='Optag']"
         ))
-        self.assertFalse(browser.find_elements(By.ID, "camera-input"))
 
 
 if __name__ == "__main__":
