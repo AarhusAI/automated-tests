@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD` and `SHARE_GROUP` in `.env.example`; `admin` login in `exploration/explore.py`.
 - GitHub Actions workflows for markdownlint and changelog checks, plus markdownlint config.
 - `AGENTS.md` with repository guidelines for coding agents.
-- Taskfile with `setup`, `build`, `tests`, `test`, `explore` and `lint` tasks.
+- Taskfile with `setup`, `build`, `tests`, `test`, `test:list`, `explore` and `lint` tasks.
 - Screenshots on test completion, split into `screenshots/success` and `screenshots/failed`. Can be disabled with
   `SCREENSHOTS=0`. Optional HTML dump of the page with `HTML_DUMP=1`.
 - Repeatable `--click` option in `exploration/explore.py` for interacting with the page before capture.

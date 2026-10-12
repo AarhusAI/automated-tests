@@ -37,6 +37,13 @@ tasks:
     cmds:
       - docker compose run --rm tests python -m unittest {{.TEST}}
 
+  test:list:
+    desc: List test names usable as TEST= (task test:list)
+    cmds:
+      - >-
+        docker compose run --rm tests python -c
+        "import unittest; print(*sorted({t.id().rsplit('.', 2)[0] for m in unittest.defaultTestLoader.discover('.') for c in m for t in c}), sep='\n')"
+
   explore:
     desc: Run exploration script (task explore -- <url_path> --login user --click "#sel")
     cmds:

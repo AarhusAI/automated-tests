@@ -1,7 +1,6 @@
 import os
 import unittest
 
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -21,11 +20,11 @@ class TestAdminLogin(helpers.BrowserTestCase):
         self.assertEqual(browser.current_url, os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
         WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
-        # Non-admins are redirected from the admin settings to /; an admin stays.
-        admin_url = os.environ["TEST_DOMAIN"] + "admin/settings"
+        # Admin settings open as a modal on /; only admins get the admin tabs.
         helpers.open_page(browser, "admin/settings")
-        with self.assertRaises(TimeoutException):
-            WebDriverWait(browser, 5).until(lambda d: not d.current_url.startswith(admin_url))
+        WebDriverWait(browser, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, '[aria-controls="tab-admin-general"]'))
+        )
 
 
 if __name__ == "__main__":

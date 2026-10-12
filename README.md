@@ -49,6 +49,7 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 - `task build` — build the image with the host's UID/GID
 - `task tests` — clear `screenshots/` and run all tests
 - `task test TEST=tests.user.test_chat` — run one module/method (defaults to `tests.user.test_chat`)
+- `task test:list` — list test names usable as `TEST=`
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
   (`task lint:markdown -- --fix` autofixes)
@@ -62,7 +63,7 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 #### [tests/admin/test_login.py](tests/admin/test_login.py)
 
 - **`test_login_as_admin`** — logs in with admin credentials, asserts the same as the other login tests, then opens
-  `/admin/settings` and asserts it is not redirected away within 5 s. Skipped when `ADMIN_USERNAME` is unset.
+  `/admin/settings` and asserts the admin settings tabs are shown. Skipped when `ADMIN_USERNAME` is unset.
 
 ### Builder
 

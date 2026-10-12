@@ -85,6 +85,7 @@ task setup                      # cp .env.example .env (skipped if .env exists)
 task build                      # docker compose build with the host's UID/GID as build args
 task tests                      # rm -rf screenshots/* then run all tests
 task test TEST=tests.user.test_chat   # one module/method (default tests.user.test_chat)
+task test:list                  # print test module names usable as TEST=
 task explore -- <url_path> --login user --click "#sel"
 task lint                       # markdownlint on **/*.md + CHANGELOG.md must differ from origin/main
 task lint:markdown -- --fix     # autofix markdown
