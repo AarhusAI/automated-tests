@@ -24,7 +24,11 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - The dictation test runs headless, so the Docker image drops Xvfb, the `xvfb-run` entrypoint and `init: true`, and
   installs Playwright's Chromium instead of Debian's chromium and chromedriver.
 - `task test` takes a pytest node id (`TEST=tests/user/test_chat.py::test_...`) and `task test:list` prints node ids.
-
+- `task test:headed` runs tests locally with visible browser windows.
+- `task test:debug` steps through a test in the Playwright Inspector.
+- `test_deleted_knowledge_is_no_longer_answered` runs as the builder only, waits until the file is processed before
+  asking, and lets the specialist answer "VED IKKE", which it must do after the deletion.
+- `helpers.create_knowledge` shares the knowledge base read-only with `SHARE_GROUP`, like `create_model` does.
 - `helpers.create_model` also adds the tag `autotest-tag` and the `websearch` tool. The specialist test now checks
   the base model, description, tag, system prompt and tool on the model's edit page.
 

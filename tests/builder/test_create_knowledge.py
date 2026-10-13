@@ -1,5 +1,4 @@
 import os
-import time
 
 from tests import helpers
 
@@ -13,15 +12,4 @@ def test_builder_can_create_knowledge_and_upload_file(page, request):
 
     helpers.create_knowledge(page, "autotest-knowledge", FIXTURE_FILE)
 
-    # Clicking the file before the server has processed it opens nothing; the row looks the same either way,
-    # so click again on each poll until the preview shows.
-    def preview_has_code_word():
-        return page.evaluate(
-            "document.querySelector('textarea[aria-label=\"File content\"]')?.value.includes('BANANA') ?? false"
-        )
-
-    deadline = time.monotonic() + 30
-    while not preview_has_code_word() and time.monotonic() < deadline:
-        page.locator(helpers.knowledge_file_row(FIXTURE_FILE)).first.click()
-        page.wait_for_timeout(2000)
-    assert preview_has_code_word()
+    assert helpers.knowledge_file_preview_contains(page, FIXTURE_FILE, "BANANA")

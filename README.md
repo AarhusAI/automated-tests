@@ -16,7 +16,7 @@ before interacting with the UI. The workspace tests open `TEST_DOMAIN/workspace/
 
 Tests that create data name it `autotest-*` (`autotest-knowledge`, `autotest-specialist`) and delete every
 `autotest-*` model and knowledge base of the builder account, with their files, before and after the test. Created
-specialists are shared with the group in `SHARE_GROUP` (default `Builder`); the user account must be a member of it.
+knowledge bases and specialists are shared read-only with the group in `SHARE_GROUP` (default `Builder`).
 The admin tests are skipped unless `ADMIN_USERNAME` is set.
 
 After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
@@ -42,12 +42,17 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 
 ## Task
 
-`Taskfile.yml` wraps the Docker commands above (`task --list` shows them):
+`Taskfile.yml` wraps the Docker commands above, plus `test:headed` and `test:debug`, which run locally
+(`task --list` shows them):
 
 - `task setup` — copy `.env.example` to `.env` (skipped if `.env` exists)
 - `task build` — build the image with the host's UID/GID
 - `task tests` — clear `screenshots/` and run all tests
 - `task test TEST=tests/user/test_chat.py::test_...` — run one file or test (defaults to `tests/user/test_chat.py`)
+- `task test:headed TEST=tests/user/test_chat.py` — run locally (not in Docker, needs `uv` and a display) with
+  visible browser windows; extra pytest args go after `--`, e.g. `task test:headed -- --slowmo 500`
+- `task test:debug TEST=tests/user/test_chat.py::test_...` — step through one test locally in the Playwright Inspector
+  (needs a display); see [Fixing an existing test](#fixing-an-existing-test)
 - `task test:list` — list the test node ids usable as `TEST=`
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
@@ -80,8 +85,9 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 
 #### [tests/builder/test_create_knowledge.py](tests/builder/test_create_knowledge.py)
 
-- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base, uploads
-  `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains "BANANA".
+- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base shared
+  with `SHARE_GROUP`, uploads `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains
+  "BANANA".
 
 #### [tests/builder/test_create_model.py](tests/builder/test_create_model.py)
 
@@ -92,10 +98,10 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 
 #### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
 
-- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge` and
-  `autotest-specialist`; in a second browser context the user asks the specialist for the code word and gets
-  "BANANA". The builder then deletes the file from the knowledge base, and the user asks again in a new chat and must
-  not get "BANANA" (retried once for index lag). Takes a few minutes.
+- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge`, waits until the file
+  is processed, creates `autotest-specialist` and asks it for the code word (or "VED IKKE" if it cannot find one),
+  expecting "BANANA". The builder then deletes the file from the knowledge base, asks again in a new chat and expects
+  "VED IKKE" and no "BANANA" (retried once for index lag).
 
 ### User
 
@@ -183,6 +189,18 @@ translate the export into a test. Nothing needs to be installed.
      assertions, so no `time.sleep`.
 5. Run it: `uv run pytest tests/<role>/test_<feature>.py` and check `screenshots/success/<test id>.png`.
 6. Add or update the entry under [Tests](#tests) and `CHANGELOG.md`.
+
+### Fixing an existing test
+
+Run the test in the Playwright Inspector: `task test:debug TEST=tests/<role>/test_<feature>.py::test_...`. It opens a
+visible browser and pauses before every action, with timeouts off.
+
+- *Step over* runs one action at a time; *Resume* runs on to the next pause or the failing step.
+- *Pick locator* shows the selector for an element you click, so you can check or replace a broken one.
+- *Record* generates code for the clicks you make from the current page state; paste it into the test.
+
+To stop at a specific line instead of the first action, put `page.pause()` there temporarily and run
+`task test:headed TEST=...`.
 
 ### Playwright codegen
 

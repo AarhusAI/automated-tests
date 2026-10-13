@@ -38,10 +38,13 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
   - `send_prompt(page, text, timeout=60)` fills `#chat-input`, sends, waits for the response to finish and returns
     its `inner_text()`.
   - `create_knowledge(page, name, file_path)` and `create_model(page, name, knowledge)` run the workspace
-    create flows through the UI. Specialists use base model env `BASE_MODEL` (default `AarhusAI-default-v2`), get
+    create flows through the UI. Both share read-only with env `SHARE_GROUP` (default `Builder`) via
+    `add_group_access(page, group)`. Specialists use base model env `BASE_MODEL` (default `AarhusAI-default-v2`), get
     tag `MODEL_TAG`, description `MODEL_DESCRIPTION`, system prompt `MODEL_SYSTEM_PROMPT` and the `websearch` tool,
-    and are shared with env `SHARE_GROUP` (default `Builder`).
+    attached.
   - `knowledge_file_row(file_path)` returns an XPath string for the file's row on a knowledge base page.
+  - `knowledge_file_preview_contains(page, file_path, text)` clicks the file until its preview contains `text`, i.e.
+    the server has processed it, and returns whether it did within 30s. Wait on it before asking about the file.
   - `api(page, method, path, body=None)` calls the Open WebUI API with the page's token via `page.evaluate`. Use it
     **only for cleanup**; `delete_test_data(page)` deletes the logged-in user's `autotest-*` models and knowledge
     bases with their files. Tests that create data call it after login and register it with
@@ -65,8 +68,7 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
 - `tests/user/`: tests for the normal-user role: `test_login`, `test_chat`, `test_assistants`, `test_file_upload`,
   `test_web_search`, `test_dictate`, `test_tools`, `test_upload_menu`, `test_tts`.
 - `tests/builder/`: tests for the builder role: `test_login`, `test_workspace_models`, `test_create_knowledge`,
-  `test_create_model`, `test_knowledge_deletion` (builder on `page`, user on a second context from the plugin's
-  `new_context` fixture).
+  `test_create_model`, `test_knowledge_deletion`.
 - `tests/admin/`: tests for the admin role (`test_login`), skipped unless `ADMIN_USERNAME` is set.
 - `tests/fixtures/`:
   - `test_document.txt` contains the code word `BANANA`.
@@ -96,11 +98,13 @@ docker compose run --rm tests pytest tests/user/test_chat.py
 # Selector exploration (--click repeatable; "//" or "(" prefix = XPath, else CSS)
 uv run python exploration/explore.py <url_path> --login user|builder --click "#integration-menu-button"
 
-# Taskfile shortcuts (all Docker-based; SCREENSHOTS/HTML_DUMP forwarded from the shell)
+# Taskfile shortcuts (Docker-based except test:headed/test:debug; SCREENSHOTS/HTML_DUMP forwarded from the shell)
 task setup                      # cp .env.example .env (skipped if .env exists)
 task build                      # docker compose build with the host's UID/GID as build args
 task tests                      # rm -rf screenshots/* then run all tests
 task test TEST=tests/user/test_chat.py::test_...   # one file/test (default tests/user/test_chat.py)
+task test:headed TEST=tests/user/test_chat.py -- --slowmo 500   # local, not Docker; visible browser
+task test:debug TEST=tests/user/test_chat.py::test_...          # local; step through in the Playwright Inspector
 task test:list                  # print the test node ids usable as TEST=
 task explore -- <url_path> --login user --click "#sel"
 task lint                       # markdownlint on **/*.md + CHANGELOG.md must differ from origin/main
@@ -151,7 +155,8 @@ changelog check, both run via `task lint` and as GitHub Actions on pull requests
 
 - `tests/conftest.py`: `.env` loading, the viewport and the screenshot hook.
 - `tests/helpers.py`: `login`, `wait_for_app`, `open_chat`, `open_page`, `send_prompt`, `create_knowledge`,
-  `knowledge_file_row`, `create_model`, `api`, `delete_test_data`, `save_screenshot` and `REGENERATE_BUTTON`.
+  `knowledge_file_row`, `knowledge_file_preview_contains`, `add_group_access`, `create_model`, `api`,
+  `delete_test_data`, `save_screenshot` and `REGENERATE_BUTTON`.
 - `tests/user/test_chat.py`: the reference test template.
 - `tests/user/test_dictate.py`: overrides `page` to launch Chromium with fake-media flags plus
   `--use-file-for-fake-audio-capture`. It runs headless; no display is needed.

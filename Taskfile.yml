@@ -24,18 +24,36 @@ tasks:
     cmds:
       - docker compose build
 
-  tests:
+  test:run:all:
     desc: Run tests (toggles via shell env, e.g. HTML_DUMP=1 task tests, SCREENSHOTS=0 task tests)
     cmds:
       - rm -rf screenshots/*
       - docker compose run --rm tests
 
-  test:
+  test:run:
     desc: Run single test file/function (task test TEST=tests/user/test_chat.py::test_...; same env toggles)
     vars:
       TEST: '{{.TEST | default "tests/user/test_chat.py"}}'
     cmds:
       - docker compose run --rm tests pytest {{.TEST}}
+
+  test:headed:
+    desc: Run tests locally (not in Docker) with visible browser windows (task test:headed TEST=tests/user/test_chat.py -- --slowmo 500)
+    vars:
+      TEST: '{{.TEST | default "tests/user/test_chat.py"}}'
+    cmds:
+      - uv run playwright install chromium
+      - uv run pytest --headed {{.TEST}} {{.CLI_ARGS}}
+
+  test:debug:
+    desc: Step through a test locally in the Playwright Inspector (task test:debug TEST=tests/user/test_chat.py::test_...)
+    vars:
+      TEST: '{{.TEST | default "tests/user/test_chat.py"}}'
+    env:
+      PWDEBUG: '1'
+    cmds:
+      - uv run playwright install chromium
+      - uv run pytest {{.TEST}} {{.CLI_ARGS}}
 
   test:list:
     desc: List test node ids usable as TEST= (task test:list)

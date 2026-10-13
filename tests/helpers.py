@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 
 from playwright.sync_api import Error, expect
 
@@ -50,10 +51,15 @@ def open_page(page, path):
 
 
 def create_knowledge(page, name, file_path):
-    """Create a knowledge base through the UI and upload one file into it. Leaves the page on the knowledge base."""
+    """Create a knowledge base shared read-only with env SHARE_GROUP (default "Builder") and upload one file into it.
+    Leaves the page on the knowledge base.
+
+    Sharing the specialist alone is not enough: its knowledge is searched with the asking user's permissions.
+    """
     open_page(page, "workspace/knowledge/create")
     page.locator('input[placeholder="Name your knowledge base"]').fill(name)
     page.locator('textarea[placeholder="Describe your knowledge base and objectives"]').fill("Automated test")
+    add_group_access(page, os.environ.get("SHARE_GROUP", "Builder"))
     page.locator('button[type="submit"]').first.click()
     page.wait_for_url(re.compile(r"/workspace/knowledge/[0-9a-f-]{36}$"), timeout=10_000)
     # The file input ignores files until the knowledge base has loaded.
@@ -67,9 +73,28 @@ def knowledge_file_row(file_path):
     return f"//button[.//*[contains(text(), '{os.path.basename(file_path)}')]]"
 
 
-def create_model(page, name, knowledge):
-    """Create a specialist on env BASE_MODEL (default "AarhusAI-default-v2") with `knowledge` and the `websearch`
-    tool attached, tagged `autotest-tag`, shared read-only with a group.
+def knowledge_file_preview_contains(page, file_path, text, timeout=30):
+    """On a knowledge base page, open the file until its preview contains `text`, i.e. the server has processed it.
+
+    Clicking the file before it is processed opens nothing and the row looks the same either way, so click again on
+    each poll. Returns whether the text showed up within `timeout` seconds.
+    """
+    def preview_has_text():
+        return page.evaluate(
+            "text => document.querySelector('textarea[aria-label=\"File content\"]')?.value.includes(text) ?? false",
+            text,
+        )
+
+    deadline = time.monotonic() + timeout
+    while not preview_has_text() and time.monotonic() < deadline:
+        page.locator(knowledge_file_row(file_path)).first.click()
+        page.wait_for_timeout(2000)
+    return preview_has_text()
+
+
+def create_model(page, name, knowledge, websearch=True):
+    """Create a specialist on env BASE_MODEL (default "AarhusAI-default-v2") with `knowledge` and (unless
+    `websearch=False`) the `websearch` tool attached, tagged `autotest-tag`, shared read-only with a group.
 
     The group is env SHARE_GROUP (default "Builder"); the user account must be a member to see the specialist.
     """
@@ -82,20 +107,13 @@ def create_model(page, name, knowledge):
     page.locator("//*[normalize-space(text())='Select Knowledge']").first.click()
     page.locator(f"//button[.//*[normalize-space(text())='{knowledge}']]").first.click()
 
-    page.locator("//*[normalize-space(text())='Select Tool']").first.click()
-    page.locator("//button[span[normalize-space()='websearch']]").click()
-    page.keyboard.press("Escape")
+    if websearch:
+        page.locator("//*[normalize-space(text())='Select Tool']").first.click()
+        page.locator("//button[span[normalize-space()='websearch']]").click()
+        page.keyboard.press("Escape")
 
     page.locator("//button[normalize-space()='Access']").click()
-    page.locator("//button[normalize-space()='Add Access']").click()
-    dialog = page.locator("//*[@role='dialog'][.//input[@placeholder='Search']]")
-    dialog.locator('input[placeholder="Search"]').fill(group)
-    dialog.locator(f"xpath=.//button[.//div[normalize-space(text())='{group}']]").first.click()
-    dialog.locator("xpath=.//button[normalize-space()='Add']").click()
-    # The access list now shows the group.
-    expect(page.locator(
-        f"//*[@role='dialog'][.//*[normalize-space()='Access List']]//*[normalize-space(text())='{group}']"
-    ).first).to_be_visible(timeout=5_000)
+    add_group_access(page, group)
     page.keyboard.press("Escape")
     expect(page.locator('[role="dialog"]').first).to_be_hidden(timeout=5_000)
 
@@ -107,6 +125,19 @@ def create_model(page, name, knowledge):
     page.locator('textarea[aria-label^="Write your model system prompt"]').fill(MODEL_SYSTEM_PROMPT)
     page.locator("//button[normalize-space()='Save & Create']").click()
     page.wait_for_url(os.environ["TEST_DOMAIN"] + "workspace/models", timeout=10_000)
+
+
+def add_group_access(page, group):
+    """In an open access list (model Access dialog or knowledge create form), grant `group` read access."""
+    page.locator("//button[normalize-space()='Add Access']").click()
+    dialog = page.locator("//*[@role='dialog'][.//input[@placeholder='Search']]")
+    dialog.locator('input[placeholder="Search"]').fill(group)
+    dialog.locator(f"xpath=.//button[.//div[normalize-space(text())='{group}']]").first.click()
+    dialog.locator("xpath=.//button[normalize-space()='Add']").click()
+    # The access list now shows the group.
+    expect(page.locator(
+        f"//*[@role='dialog'][.//*[normalize-space()='Access List']]//*[normalize-space(text())='{group}']"
+    ).first).to_be_visible(timeout=5_000)
 
 
 def api(page, method, path, body=None):
