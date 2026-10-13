@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Fixed
 
+- Screenshots are taken with animations disabled, so menus and the sidebar are captured fully rendered instead of
+  mid fade-in.
 - `helpers.login` waits for the app to load, so workspace pages opened right after login no longer redirect to `/`.
 - `helpers.create_model` uses base model env `BASE_MODEL` (default `AarhusAI-default-v2`); `BA-gpt-oss-120b` is no
   longer offered as a base model to the builder.
@@ -38,6 +40,7 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - `test_was_redirects_to_accessibility_statement` asserts `/was` shows the Tilgængelighedserklæring page.
 - `test_user_can_see_logo_and_name_in_expanded_sidebar` asserts the expanded sidebar shows the Aarhus Kommune logo
   in the bottom corner with the user's name above it.
+- `test_user_upload_menu_has_only_expected_items` asserts the upload menu contains only the four expected items.
 - Tests for tools listing, no image capture in the upload menu, read aloud (TTS), workspace model search and
   import/export, knowledge creation with upload, specialist creation and sharing, knowledge deletion end to end, and
   admin login.

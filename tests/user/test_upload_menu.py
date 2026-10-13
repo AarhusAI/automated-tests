@@ -1,3 +1,4 @@
+import re
 import os
 
 from playwright.sync_api import expect
@@ -15,3 +16,17 @@ def test_user_cannot_capture_images(page):
 
     # count() does not wait, so this asserts absence once the menu is open.
     assert page.locator("//*[normalize-space(text())='Capture' or normalize-space(text())='Optag']").count() == 0
+
+
+def test_user_upload_menu_has_only_expected_items(page):
+    helpers.open_chat(page, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+
+    page.locator("#input-menu-button").click()
+
+    # A list asserts the exact items in order, so any extra item fails the test.
+    expect(page.locator('[role="menu"] button .line-clamp-1')).to_have_text([
+        re.compile(r"^(Upload Files|Upload filer)$"),
+        re.compile(r"^(Attach Webpage|Vedhæft webside)$"),
+        re.compile(r"^(Attach Files|Vedhæft filer)$"),
+        re.compile(r"^(Reference Chats|Reference chats)$"),
+    ], timeout=5_000)

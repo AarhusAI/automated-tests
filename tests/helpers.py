@@ -183,7 +183,8 @@ def save_screenshot(item, page, failed):
     path = os.path.abspath(os.path.join(directory, f"{item.module.__name__}.{item.originalname}"))
     try:
         if screenshot:
-            page.screenshot(path=path + ".png")
+            # Fast-forward running fade-ins (menus, sidebar) so they are captured fully rendered.
+            page.screenshot(path=path + ".png", animations="disabled")
         if html:
             with open(path + ".html", "w", encoding="utf-8") as f:
                 f.write(page.content())

@@ -161,6 +161,8 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 
 - **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item. (The hidden
   `#camera-input` is always in the DOM, so it is not checked.)
+- **`test_user_upload_menu_has_only_expected_items`** — opens the upload menu and asserts it contains exactly Upload
+  filer, Vedhæft webside, Vedhæft filer and Reference chats, in that order.
 
 #### [tests/user/test_tts.py](tests/user/test_tts.py)
 
