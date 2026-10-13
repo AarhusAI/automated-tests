@@ -3,23 +3,6 @@ FROM python:3.13-slim-bookworm
 # Pull the uv binary from the official image (pin to a release for reproducibility).
 COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /usr/local/bin/
 
-# Chromium + matching chromedriver for Selenium, Xvfb for the non-headless
-# dictation test, and fonts so pages/screenshots render properly.
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends \
-        chromium \
-        chromium-driver \
-        xvfb \
-        xauth \
-        fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
-
-# Chrome's sandbox and small default /dev/shm don't work in containers.
-# Debian's chromium wrapper sources /etc/chromium.d/*, so these flags apply
-# to every browser chromedriver launches — no test-code changes needed.
-RUN echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-dev-shm-usage"' \
-    > /etc/chromium.d/docker-flags
-
 # Place the project venv outside /app so the docker-compose bind-mount of ./:/app
 # does not shadow it at runtime.
 ENV PYTHONUNBUFFERED=1 \
@@ -27,6 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
     PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
@@ -36,6 +20,11 @@ WORKDIR /app
 COPY pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
+
+# Playwright's Chromium plus its system libraries and fonts. Playwright already
+# launches it with --no-sandbox and --disable-dev-shm-usage, which containers need.
+RUN playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add deploy user; UID/GID default to the server's 1042. `task build` passes the
 # host's ids so bind-mounted writes work. --non-unique tolerates ids that already
@@ -48,7 +37,4 @@ RUN groupadd --non-unique --gid ${GID} deploy \
 
 USER deploy
 
-# xvfb-run provides the display the non-headless dictation test needs;
-# it is harmless for the headless tests.
-ENTRYPOINT ["xvfb-run", "-a"]
-CMD ["python", "-m", "unittest"]
+CMD ["pytest"]

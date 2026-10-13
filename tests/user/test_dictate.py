@@ -1,48 +1,43 @@
 import os
 import time
-import unittest
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import dotenv
+import pytest
+from playwright.sync_api import expect
 
 from tests import helpers
-
-dotenv.load_dotenv()
 
 FIXTURE_AUDIO = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "fixtures", "dictation_sample.wav")
 )
 
 
-class TestUserDictate(helpers.BrowserTestCase):
-    # Not headless: the fake mic needs a display (Xvfb in Docker).
-    chrome_args = (
-        "--use-fake-ui-for-media-stream",
-        "--use-fake-device-for-media-stream",
-        f"--use-file-for-fake-audio-capture={FIXTURE_AUDIO}",
-    )
-
-    def test_user_can_dictate_into_chat_input(self):
-        browser = self.browser
-        helpers.open_chat(browser, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
-
-        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
-
-        browser.find_element(By.ID, "voice-input-button").click()
-
-        confirm = WebDriverWait(browser, 5).until(
-            EC.element_to_be_clickable((By.ID, "confirm-recording-button"))
-        )
-        time.sleep(4)  # let the fake mic play the fixture WAV
-        confirm.click()
-
-        transcribed = WebDriverWait(browser, 30).until(
-            lambda d: d.find_element(By.ID, "chat-input").text.strip()
-        )
-        self.assertIn("Hej med dig", transcribed)
+@pytest.fixture
+def page(browser_type, browser_type_launch_args, browser_context_args):
+    # Fake-media flags are launch args, so this test needs its own browser.
+    browser = browser_type.launch(**{
+        **browser_type_launch_args,
+        "args": [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+            f"--use-file-for-fake-audio-capture={FIXTURE_AUDIO}",
+        ],
+    })
+    context = browser.new_context(**browser_context_args)
+    yield context.new_page()
+    context.close()
+    browser.close()
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_user_can_dictate_into_chat_input(page):
+    helpers.open_chat(page, os.environ["USER_USERNAME"], os.environ["USER_PASSWORD"])
+
+    expect(page.locator("#chat-input-container")).to_be_visible(timeout=10_000)
+
+    page.locator("#voice-input-button").click()
+
+    confirm = page.locator("#confirm-recording-button")
+    confirm.wait_for(timeout=5_000)
+    time.sleep(4)  # let the fake mic play the fixture WAV
+    confirm.click()
+
+    expect(page.locator("#chat-input")).to_contain_text("Hej med dig", timeout=30_000)
