@@ -10,8 +10,13 @@ Selenium-based end-to-end tests for the AarhusAI web UI.
 3. Run all tests: `uv run python -m unittest`, or a single module/method:
    `uv run python -m unittest tests.user.test_chat`.
 
-Every test logs in, then opens `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
-before interacting with the UI.
+Most tests log in, then open `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
+before interacting with the UI. The workspace tests open `TEST_DOMAIN/workspace/...` instead.
+
+Tests that create data name it `autotest-*` (`autotest-knowledge`, `autotest-specialist`) and delete every
+`autotest-*` model and knowledge base of the builder account, with their files, before and after the test. Created
+specialists are shared with the group in `SHARE_GROUP` (default `Builder`); the user account must be a member of it.
+The admin tests are skipped unless `ADMIN_USERNAME` is set.
 
 After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
 (gitignored, overwritten on each run). In Docker, it lands in `./screenshots/` on the host via the bind mount.
@@ -44,6 +49,7 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 - `task build` — build the image with the host's UID/GID
 - `task tests` — clear `screenshots/` and run all tests
 - `task test TEST=tests.user.test_chat` — run one module/method (defaults to `tests.user.test_chat`)
+- `task test:list` — list test names usable as `TEST=`
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
   (`task lint:markdown -- --fix` autofixes)
@@ -52,12 +58,45 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 ## Tests
 
+### Admin
+
+#### [tests/admin/test_login.py](tests/admin/test_login.py)
+
+- **`test_login_as_admin`** — logs in with admin credentials, asserts the same as the other login tests, then opens
+  `/admin/settings` and asserts the admin settings tabs are shown. Skipped when `ADMIN_USERNAME` is unset.
+
 ### Builder
 
 #### [tests/builder/test_login.py](tests/builder/test_login.py)
 
 - **`test_login_as_builder`** — logs in with builder credentials, opens `?model=aarhusai-start` and asserts the URL
   matches and the chat input is displayed.
+
+#### [tests/builder/test_workspace_models.py](tests/builder/test_workspace_models.py)
+
+- **`test_builder_can_search_models`** — searches `/workspace/models` for "AarhusAI start" and asserts the row list
+  shrinks and still shows the AarhusAI start row.
+- **`test_builder_can_see_import_and_export`** — opens the create menu and asserts `Import JSON` and `Export JSON`
+  are clickable.
+
+#### [tests/builder/test_create_knowledge.py](tests/builder/test_create_knowledge.py)
+
+- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base, uploads
+  `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains "BANANA".
+
+#### [tests/builder/test_create_model.py](tests/builder/test_create_model.py)
+
+- **`test_builder_can_create_and_share_specialist`** — creates `autotest-knowledge`, then the `autotest-specialist`
+  model on `BASE_MODEL` (default `AarhusAI-default-v2`) with that knowledge, a description, the tag `autotest-tag`, a
+  system prompt and the `websearch` tool, shared with `SHARE_GROUP`. Asserts the workspace search finds it and its
+  edit page shows every field.
+
+#### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
+
+- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge` and
+  `autotest-specialist`; in a second browser the user asks the specialist for the code word and gets "BANANA". The
+  builder then deletes the file from the knowledge base, and the user asks again in a new chat and must not get
+  "BANANA" (retried once for index lag). Runs two browsers and takes a few minutes.
 
 ### User
 
@@ -93,6 +132,21 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
   microphone, clicks the voice input button, confirms the recording, and asserts the transcribed text "Hej med dig"
   appears in the chat input. Runs non-headless, so it needs a display (Xvfb in Docker).
 
+#### [tests/user/test_tools.py](tests/user/test_tools.py)
+
+- **`test_user_can_see_available_tools`** — opens the integration menu, opens Værktøjer and asserts websearch,
+  eventdatabase, retsinformation, EU founding portal and Office documents are listed.
+
+#### [tests/user/test_upload_menu.py](tests/user/test_upload_menu.py)
+
+- **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item. (The hidden
+  `#camera-input` is always in the DOM, so it is not checked.)
+
+#### [tests/user/test_tts.py](tests/user/test_tts.py)
+
+- **`test_user_can_read_response_aloud`** — sends a prompt, clicks Read Aloud on the response and asserts the
+  `/api/v1/audio/speech` request returned 200.
+
 ## Exploration
 
 `exploration/explore.py` is a helper for writing new tests: it navigates to a path (optionally logging in first) and
@@ -105,3 +159,35 @@ uv run python exploration/explore.py --login user --click "#integration-menu-but
 ```
 
 Via Docker with Task (args after `--`): `task explore -- / --login user --click "#integration-menu-button"`.
+
+## Recording a flow
+
+To create or update a test from clicks in a browser, record the flow with Chrome's built-in DevTools Recorder and
+translate the export into a test. Nothing needs to be installed.
+
+1. Open `TEST_DOMAIN` in Chrome and log in as the role the test should use.
+2. Open DevTools (F12) → **Recorder** panel → **Create a new recording**, click through the flow, then stop.
+3. **Export** the recording as JSON. Every step lists selector candidates: `#id`, `aria/...`, `text/...` and
+   `xpath/...`.
+4. Translate the steps into a test (or paste the JSON to an AI assistant and ask for the translation):
+   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, class `Test<Role><Feature>`,
+     method `test_<role>_can_<action>`.
+   - Existing test: compare the recorded selectors and step order with the test and patch only what changed.
+   - Login and navigation steps → `helpers.open_chat(browser, user, pw)`, or `helpers.login` plus
+     `helpers.open_page(browser, "workspace/...")`.
+   - Click steps → prefer the `#id` candidate with `By.ID`; otherwise XPath on the visible text with
+     `normalize-space`, matching both the Danish and the English label.
+   - Typing a prompt and waiting for the answer → `helpers.send_prompt(browser, text)`, then assert on a key
+     substring of the response, never on the exact text.
+   - Toggles keep their state per user, so check `aria-pressed` before clicking.
+   - Drop `setViewport`, `scroll` and timing steps; wait with `WebDriverWait`, not `time.sleep`.
+5. Run it: `uv run python -m unittest tests.<role>.test_<feature>` and check `screenshots/success/<test id>.png`.
+6. Add or update the entry under [Tests](#tests) and `CHANGELOG.md`.
+
+### Firefox
+
+Firefox has no built-in recorder. Install the [Selenium IDE](https://www.selenium.dev/selenium-ide/) add-on
+(also available for Chrome), record the flow and export it as **Python pytest**. The export uses raw
+`webdriver.Chrome()` calls and css-path or XPath selectors, so translate it with the same rules as above:
+replace the browser setup and login with the helpers, and swap generated selectors for `By.ID` or visible-text XPath
+where possible.

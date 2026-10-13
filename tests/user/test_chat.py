@@ -18,17 +18,8 @@ class TestUserChat(helpers.BrowserTestCase):
 
         WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
 
-        chat_input = browser.find_element(By.ID, "chat-input")
-        chat_input.click()
-        chat_input.send_keys("Say only the word: hello")
-        browser.find_element(By.ID, "send-message-button").click()
-
-        WebDriverWait(browser, 60).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, helpers.REGENERATE_BUTTON))
-        )
-
-        response = browser.find_element(By.ID, "response-content-container")
-        self.assertTrue(response.text.strip())
+        response = helpers.send_prompt(browser, "Say only the word: hello")
+        self.assertTrue(response.strip())
 
 
 if __name__ == "__main__":

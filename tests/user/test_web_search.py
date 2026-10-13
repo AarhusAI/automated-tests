@@ -41,16 +41,7 @@ class TestUserWebSearch(helpers.BrowserTestCase):
             lambda _: web_search_row.get_attribute("aria-pressed") == "true"
         )
 
-        chat_input = browser.find_element(By.ID, "chat-input")
-        chat_input.click()
-        chat_input.send_keys("Hvem er borgmester i Aarhus?")
-        browser.find_element(By.ID, "send-message-button").click()
-
-        WebDriverWait(browser, 120).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, helpers.REGENERATE_BUTTON))
-        )
-
-        response = browser.find_element(By.ID, "response-content-container").text
+        response = helpers.send_prompt(browser, "Hvem er borgmester i Aarhus?", timeout=120)
         self.assertIn("Anders Winnerskjold", response)
 
 

@@ -3,7 +3,6 @@ import unittest
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import dotenv
 
 from tests import helpers
@@ -32,17 +31,10 @@ class TestUserFileUpload(helpers.BrowserTestCase):
             os.path.basename(FIXTURE_FILE)
         ))
 
-        chat_input = browser.find_element(By.ID, "chat-input")
-        chat_input.click()
-        chat_input.send_keys("What is the secret code word in the uploaded file? Reply with the code word only.")
-        browser.find_element(By.ID, "send-message-button").click()
-
-        WebDriverWait(browser, 60).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, helpers.REGENERATE_BUTTON))
+        response = helpers.send_prompt(
+            browser, "What is the secret code word in the uploaded file? Reply with the code word only."
         )
-
-        response = browser.find_element(By.ID, "response-content-container")
-        self.assertIn("BANANA", response.text.upper())
+        self.assertIn("BANANA", response.upper())
 
 
 if __name__ == "__main__":
