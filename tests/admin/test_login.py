@@ -1,31 +1,19 @@
 import os
-import unittest
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import dotenv
+import pytest
+from playwright.sync_api import expect
 
 from tests import helpers
 
-dotenv.load_dotenv()
+pytestmark = pytest.mark.skipif(not os.environ.get("ADMIN_USERNAME"), reason="ADMIN_USERNAME/ADMIN_PASSWORD not set")
 
 
-@unittest.skipUnless(os.environ.get("ADMIN_USERNAME"), "ADMIN_USERNAME/ADMIN_PASSWORD not set")
-class TestAdminLogin(helpers.BrowserTestCase):
-    def test_login_as_admin(self):
-        browser = self.browser
-        helpers.open_chat(browser, os.environ["ADMIN_USERNAME"], os.environ["ADMIN_PASSWORD"])
+def test_login_as_admin(page):
+    helpers.open_chat(page, os.environ["ADMIN_USERNAME"], os.environ["ADMIN_PASSWORD"])
 
-        self.assertEqual(browser.current_url, os.environ["TEST_DOMAIN"] + "?model=aarhusai-start")
-        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "chat-input-container")))
+    assert page.url == os.environ["TEST_DOMAIN"] + "?model=aarhusai-start"
+    expect(page.locator("#chat-input-container")).to_be_visible(timeout=10_000)
 
-        # Admin settings open as a modal on /; only admins get the admin tabs.
-        helpers.open_page(browser, "admin/settings")
-        WebDriverWait(browser, 10).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, '[aria-controls="tab-admin-general"]'))
-        )
-
-
-if __name__ == "__main__":
-    unittest.main()
+    # Admin settings open as a modal on /; only admins get the admin tabs.
+    helpers.open_page(page, "admin/settings")
+    expect(page.locator('[aria-controls="tab-admin-general"]')).to_be_visible(timeout=10_000)

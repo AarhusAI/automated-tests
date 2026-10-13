@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Changed
 
+- Switched the suite from Selenium and `unittest` to pytest-playwright. Tests are plain functions that take the
+  `page` fixture, `tests/conftest.py` replaces `BrowserTestCase` and takes the screenshots, and screenshot names drop
+  the class (`tests.user.test_chat.test_...`). Run with `uv run pytest` after `uv run playwright install chromium`.
+- The dictation test runs headless, so the Docker image drops Xvfb, the `xvfb-run` entrypoint and `init: true`, and
+  installs Playwright's Chromium instead of Debian's chromium and chromedriver.
+- `task test` takes a pytest node id (`TEST=tests/user/test_chat.py::test_...`) and `task test:list` prints node ids.
+
 - `helpers.create_model` also adds the tag `autotest-tag` and the `websearch` tool. The specialist test now checks
   the base model, description, tag, system prompt and tool on the model's edit page.
 

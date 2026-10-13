@@ -1,14 +1,15 @@
 # Automated tests for AarhusAI
 
-Selenium-based end-to-end tests for the AarhusAI web UI.
+Playwright-based end-to-end tests for the AarhusAI web UI.
 
 ## Setup
 
 1. Copy `.env.example` to `.env` (or `task setup`) and fill in `TEST_DOMAIN` (with trailing slash) plus the role
    credentials.
-2. Install dependencies (uv): `uv sync`.
-3. Run all tests: `uv run python -m unittest`, or a single module/method:
-   `uv run python -m unittest tests.user.test_chat`.
+2. Install dependencies (uv): `uv sync`, then the browser: `uv run playwright install chromium`.
+3. Run all tests with `uv run pytest`, a single file with `uv run pytest tests/user/test_chat.py`, or a single test
+   with `uv run pytest tests/user/test_chat.py::test_user_can_send_prompt_and_receive_response`. Add `--headed` to
+   watch the browser.
 
 Most tests log in, then open `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
 before interacting with the UI. The workspace tests open `TEST_DOMAIN/workspace/...` instead.
@@ -21,25 +22,23 @@ The admin tests are skipped unless `ADMIN_USERNAME` is set.
 After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
 (gitignored, overwritten on each run). In Docker, it lands in `./screenshots/` on the host via the bind mount.
 Toggle via env (`.env` or inline): `SCREENSHOTS=0` disables screenshots (default on); `HTML_DUMP=1` also saves the
-rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run python -m unittest` or
-`HTML_DUMP=1 task tests` (docker-compose forwards both from the shell).
+rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run pytest` or
+`HTML_DUMP=1 task tests` (docker-compose forwards both from the shell). `<test id>` is the module and function name,
+e.g. `tests.user.test_chat.test_user_can_send_prompt_and_receive_response`.
 
 ## Docker
 
-The image (`Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any
-local browser setup. Credentials are passed from `.env` at runtime (not baked into the image).
+The image (`Dockerfile`) bundles Python 3.13 and Playwright's Chromium, so tests run without any local browser
+setup. Credentials are passed from `.env` at runtime (not baked into the image).
 
 - Build: `docker compose build`
 - Run all tests: `docker compose run --rm tests`
-- Run a single test: `docker compose run --rm tests python -m unittest tests.user.test_chat`
+- Run a single test: `docker compose run --rm tests pytest tests/user/test_chat.py`
 - Explore a page: `docker compose run --rm tests python exploration/explore.py <url_path> --login user` (outputs land in
   `exploration/` on the host via the bind mount)
 
 The container runs as user `deploy`. The build args `UID`/`GID` default to 1042 (the server's ids); pass your own so
 files written to the bind mount (`screenshots/`, `exploration/`) are owned by you. `task build` does this automatically.
-
-The container entrypoint wraps commands in `xvfb-run`, which provides the virtual display the non-headless dictation
-test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs forever.
 
 ## Task
 
@@ -48,8 +47,8 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 - `task setup` — copy `.env.example` to `.env` (skipped if `.env` exists)
 - `task build` — build the image with the host's UID/GID
 - `task tests` — clear `screenshots/` and run all tests
-- `task test TEST=tests.user.test_chat` — run one module/method (defaults to `tests.user.test_chat`)
-- `task test:list` — list test names usable as `TEST=`
+- `task test TEST=tests/user/test_chat.py::test_...` — run one file or test (defaults to `tests/user/test_chat.py`)
+- `task test:list` — list the test node ids usable as `TEST=`
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
   (`task lint:markdown -- --fix` autofixes)
@@ -94,9 +93,9 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 #### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
 
 - **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge` and
-  `autotest-specialist`; in a second browser the user asks the specialist for the code word and gets "BANANA". The
-  builder then deletes the file from the knowledge base, and the user asks again in a new chat and must not get
-  "BANANA" (retried once for index lag). Runs two browsers and takes a few minutes.
+  `autotest-specialist`; in a second browser context the user asks the specialist for the code word and gets
+  "BANANA". The builder then deletes the file from the knowledge base, and the user asks again in a new chat and must
+  not get "BANANA" (retried once for index lag). Takes a few minutes.
 
 ### User
 
@@ -130,7 +129,7 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 - **`test_user_can_dictate_into_chat_input`** — pipes `tests/fixtures/dictation_sample.wav` into Chrome's fake
   microphone, clicks the voice input button, confirms the recording, and asserts the transcribed text "Hej med dig"
-  appears in the chat input. Runs non-headless, so it needs a display (Xvfb in Docker).
+  appears in the chat input. Launches its own browser, since the fake-media flags are launch arguments.
 
 #### [tests/user/test_tools.py](tests/user/test_tools.py)
 
@@ -170,24 +169,28 @@ translate the export into a test. Nothing needs to be installed.
 3. **Export** the recording as JSON. Every step lists selector candidates: `#id`, `aria/...`, `text/...` and
    `xpath/...`.
 4. Translate the steps into a test (or paste the JSON to an AI assistant and ask for the translation):
-   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, class `Test<Role><Feature>`,
-     method `test_<role>_can_<action>`.
+   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, with a function
+     `test_<role>_can_<action>(page)`.
    - Existing test: compare the recorded selectors and step order with the test and patch only what changed.
-   - Login and navigation steps → `helpers.open_chat(browser, user, pw)`, or `helpers.login` plus
-     `helpers.open_page(browser, "workspace/...")`.
-   - Click steps → prefer the `#id` candidate with `By.ID`; otherwise XPath on the visible text with
+   - Login and navigation steps → `helpers.open_chat(page, user, pw)`, or `helpers.login` plus
+     `helpers.open_page(page, "workspace/...")`.
+   - Click steps → prefer the `#id` candidate with `page.locator("#id")`; otherwise XPath on the visible text with
      `normalize-space`, matching both the Danish and the English label.
-   - Typing a prompt and waiting for the answer → `helpers.send_prompt(browser, text)`, then assert on a key
+   - Typing a prompt and waiting for the answer → `helpers.send_prompt(page, text)`, then assert on a key
      substring of the response, never on the exact text.
    - Toggles keep their state per user, so check `aria-pressed` before clicking.
-   - Drop `setViewport`, `scroll` and timing steps; wait with `WebDriverWait`, not `time.sleep`.
-5. Run it: `uv run python -m unittest tests.<role>.test_<feature>` and check `screenshots/success/<test id>.png`.
+   - Drop `setViewport`, `scroll` and timing steps; locator actions auto-wait, and `expect(...)` waits for
+     assertions, so no `time.sleep`.
+5. Run it: `uv run pytest tests/<role>/test_<feature>.py` and check `screenshots/success/<test id>.png`.
 6. Add or update the entry under [Tests](#tests) and `CHANGELOG.md`.
 
-### Firefox
+### Playwright codegen
 
-Firefox has no built-in recorder. Install the [Selenium IDE](https://www.selenium.dev/selenium-ide/) add-on
-(also available for Chrome), record the flow and export it as **Python pytest**. The export uses raw
-`webdriver.Chrome()` calls and css-path or XPath selectors, so translate it with the same rules as above:
-replace the browser setup and login with the helpers, and swap generated selectors for `By.ID` or visible-text XPath
-where possible.
+Playwright's recorder works in any browser and writes Playwright Python directly:
+
+```bash
+uv run playwright codegen "$TEST_DOMAIN"
+```
+
+Translate its output with the same rules as above: replace the login with the helpers and prefer `#id` or
+visible-text selectors over generated ones.
