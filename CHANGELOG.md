@@ -34,6 +34,10 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Added
 
+- `test_login_page_info` asserts the login page shows the access request notice.
+- `test_was_redirects_to_accessibility_statement` asserts `/was` shows the Tilgængelighedserklæring page.
+- `test_user_can_see_logo_and_name_in_expanded_sidebar` asserts the expanded sidebar shows the Aarhus Kommune logo
+  in the bottom corner with the user's name above it.
 - Tests for tools listing, no image capture in the upload menu, read aloud (TTS), workspace model search and
   import/export, knowledge creation with upload, specialist creation and sharing, knowledge deletion end to end, and
   admin login.

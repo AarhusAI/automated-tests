@@ -65,8 +65,9 @@ assert on real LLM output. Nothing is mocked and there is no app code in this re
 
 ## Key Directories
 
-- `tests/user/`: tests for the normal-user role: `test_login`, `test_chat`, `test_assistants`, `test_file_upload`,
-  `test_web_search`, `test_dictate`, `test_tools`, `test_upload_menu`, `test_tts`.
+- `tests/user/`: tests for the normal-user role: `test_login`, `test_login_page_info`, `test_accessibility_statement`,
+  `test_chat`, `test_assistants`, `test_file_upload`, `test_web_search`, `test_dictate`, `test_tools`, `test_upload_menu`,
+  `test_tts`, `test_sidebar`.
 - `tests/builder/`: tests for the builder role: `test_login`, `test_workspace_models`, `test_create_knowledge`,
   `test_create_model`, `test_knowledge_deletion`.
 - `tests/admin/`: tests for the admin role (`test_login`), skipped unless `ADMIN_USERNAME` is set.

@@ -110,6 +110,21 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 - **`test_login_as_user`** — logs in with user credentials, opens `?model=aarhusai-start` and asserts the URL matches
   and the chat input is displayed.
 
+#### [tests/user/test_login_page_info.py](tests/user/test_login_page_info.py)
+
+- **`test_login_page_info`** — opens the login page and asserts it shows the notice that access to
+  AarhusAI must be requested in Aarhus Kommunes systemregister before the first login.
+
+#### [tests/user/test_accessibility_statement.py](tests/user/test_accessibility_statement.py)
+
+- **`test_was_redirects_to_accessibility_statement`** — opens `/was` and asserts it redirects to `was.digst.dk` and
+  shows the Tilgængelighedserklæring heading.
+
+#### [tests/user/test_sidebar.py](tests/user/test_sidebar.py)
+
+- **`test_user_can_see_logo_and_name_in_expanded_sidebar`** — logs in, expands the sidebar and asserts the Aarhus
+  Kommune logo is shown in the bottom left corner with the user's name above it.
+
 #### [tests/user/test_chat.py](tests/user/test_chat.py)
 
 - **`test_user_can_send_prompt_and_receive_response`** — sends "Say only the word: hello" and asserts a non-empty
