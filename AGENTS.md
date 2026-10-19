@@ -102,8 +102,8 @@ uv run python exploration/explore.py <url_path> --login user|builder --click "#i
 # Taskfile shortcuts (Docker-based except test:headed/test:debug; SCREENSHOTS/HTML_DUMP forwarded from the shell)
 task setup                      # cp .env.example .env (skipped if .env exists)
 task build                      # docker compose build with the host's UID/GID as build args
-task tests                      # rm -rf screenshots/* then run all tests
-task test TEST=tests/user/test_chat.py::test_...   # one file/test (default tests/user/test_chat.py)
+task test:run:all                      # rm -rf screenshots/* then run all tests
+task test:run TEST=tests/user/test_chat.py::test_...   # one file/test (default tests/user/test_chat.py)
 task test:headed TEST=tests/user/test_chat.py -- --slowmo 500   # local, not Docker; visible browser
 task test:debug TEST=tests/user/test_chat.py::test_...          # local; step through in the Playwright Inspector
 task test:list                  # print the test node ids usable as TEST=

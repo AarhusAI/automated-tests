@@ -25,13 +25,13 @@ tasks:
       - docker compose build
 
   test:run:all:
-    desc: Run tests (toggles via shell env, e.g. HTML_DUMP=1 task tests, SCREENSHOTS=0 task tests)
+    desc: Run tests (toggles via shell env, e.g. HTML_DUMP=1 task test:run:all, SCREENSHOTS=0 task test:run:all)
     cmds:
       - rm -rf screenshots/*
       - docker compose run --rm tests
 
   test:run:
-    desc: Run single test file/function (task test TEST=tests/user/test_chat.py::test_...; same env toggles)
+    desc: Run single test file/function (task test:run TEST=tests/user/test_chat.py::test_...; same env toggles)
     vars:
       TEST: '{{.TEST | default "tests/user/test_chat.py"}}'
     cmds:

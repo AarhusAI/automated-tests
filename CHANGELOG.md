@@ -25,7 +25,8 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
   the class (`tests.user.test_chat.test_...`). Run with `uv run pytest` after `uv run playwright install chromium`.
 - The dictation test runs headless, so the Docker image drops Xvfb, the `xvfb-run` entrypoint and `init: true`, and
   installs Playwright's Chromium instead of Debian's chromium and chromedriver.
-- `task test` takes a pytest node id (`TEST=tests/user/test_chat.py::test_...`) and `task test:list` prints node ids.
+- `task tests` and `task test` are renamed to `task test:run:all` and `task test:run`. `task test:run` takes a pytest
+  node id (`TEST=tests/user/test_chat.py::test_...`) and `task test:list` prints node ids.
 - `task test:headed` runs tests locally with visible browser windows.
 - `task test:debug` steps through a test in the Playwright Inspector.
 - `test_deleted_knowledge_is_no_longer_answered` runs as the builder only, waits until the file is processed before

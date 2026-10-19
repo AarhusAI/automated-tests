@@ -23,7 +23,7 @@ After each test a screenshot is saved to `screenshots/success/<test id>.png` or 
 (gitignored, overwritten on each run). In Docker, it lands in `./screenshots/` on the host via the bind mount.
 Toggle via env (`.env` or inline): `SCREENSHOTS=0` disables screenshots (default on); `HTML_DUMP=1` also saves the
 rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run pytest` or
-`HTML_DUMP=1 task tests` (docker-compose forwards both from the shell). `<test id>` is the module and function name,
+`HTML_DUMP=1 task test:run:all` (docker-compose forwards both from the shell). `<test id>` is the module and function name,
 e.g. `tests.user.test_chat.test_user_can_send_prompt_and_receive_response`.
 
 ## Docker
@@ -47,8 +47,8 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 
 - `task setup` — copy `.env.example` to `.env` (skipped if `.env` exists)
 - `task build` — build the image with the host's UID/GID
-- `task tests` — clear `screenshots/` and run all tests
-- `task test TEST=tests/user/test_chat.py::test_...` — run one file or test (defaults to `tests/user/test_chat.py`)
+- `task test:run:all` — clear `screenshots/` and run all tests
+- `task test:run TEST=tests/user/test_chat.py::test_...` — run one file or test (defaults to `tests/user/test_chat.py`)
 - `task test:headed TEST=tests/user/test_chat.py` — run locally (not in Docker, needs `uv` and a display) with
   visible browser windows; extra pytest args go after `--`, e.g. `task test:headed -- --slowmo 500`
 - `task test:debug TEST=tests/user/test_chat.py::test_...` — step through one test locally in the Playwright Inspector
@@ -58,7 +58,7 @@ files written to the bind mount (`screenshots/`, `exploration/`) are owned by yo
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
   (`task lint:markdown -- --fix` autofixes)
 
-`SCREENSHOTS`/`HTML_DUMP` set in the shell are forwarded, e.g. `HTML_DUMP=1 task tests`.
+`SCREENSHOTS`/`HTML_DUMP` set in the shell are forwarded, e.g. `HTML_DUMP=1 task test:run:all`.
 
 ## Tests
 
