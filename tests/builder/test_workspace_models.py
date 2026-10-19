@@ -1,42 +1,32 @@
 import os
-import unittest
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import dotenv
+from playwright.sync_api import expect
 
 from tests import helpers
 
-dotenv.load_dotenv()
-
-MODEL_ROWS = (By.CSS_SELECTOR, '[id^="model-item-"]')
+MODEL_ROWS = '[id^="model-item-"]'
 
 
-class TestBuilderWorkspaceModels(helpers.BrowserTestCase):
-    def test_builder_can_search_models(self):
-        browser = self.browser
-        helpers.login(browser, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
-        helpers.open_page(browser, "workspace/models")
+def test_builder_can_search_models(page):
+    helpers.login(page, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
+    helpers.open_page(page, "workspace/models")
 
-        WebDriverWait(browser, 10).until(EC.visibility_of_element_located((By.ID, "model-item-aarhusai-start")))
-        total = len(browser.find_elements(*MODEL_ROWS))
+    expect(page.locator("#model-item-aarhusai-start")).to_be_visible(timeout=10_000)
+    total = page.locator(MODEL_ROWS).count()
 
-        browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Search Models"]').send_keys("AarhusAI start")
-        WebDriverWait(browser, 10).until(lambda d: len(d.find_elements(*MODEL_ROWS)) < total)
-        self.assertTrue(browser.find_element(By.ID, "model-item-aarhusai-start").is_displayed())
-
-    def test_builder_can_see_import_and_export(self):
-        browser = self.browser
-        helpers.login(browser, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
-        helpers.open_page(browser, "workspace/models")
-
-        browser.find_element(By.CSS_SELECTOR, 'button[aria-label="Open create menu"]').click()
-        for label in ("Import JSON", "Export JSON"):
-            WebDriverWait(browser, 5).until(EC.element_to_be_clickable((
-                By.XPATH, f"//button[.//*[normalize-space(text())='{label}'] or normalize-space()='{label}']"
-            )))
+    page.locator('input[placeholder="Search Models"]').fill("AarhusAI start")
+    page.wait_for_function(
+        f"n => document.querySelectorAll('{MODEL_ROWS}').length < n", arg=total, timeout=10_000
+    )
+    expect(page.locator("#model-item-aarhusai-start")).to_be_visible()
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_builder_can_see_import_and_export(page):
+    helpers.login(page, os.environ["BUILDER_USERNAME"], os.environ["BUILDER_PASSWORD"])
+    helpers.open_page(page, "workspace/models")
+
+    page.locator('button[aria-label="Open create menu"]').click()
+    for label in ("Import JSON", "Export JSON"):
+        expect(page.locator(
+            f"//button[.//*[normalize-space(text())='{label}'] or normalize-space()='{label}']"
+        ).first).to_be_visible(timeout=5_000)

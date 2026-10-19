@@ -1,14 +1,9 @@
 import json
 import os
-import unittest
+import re
+import time
 
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from playwright.sync_api import Error, expect
 
 # UI language depends on account/locale, not the browser; match both.
 REGENERATE_BUTTON = 'button[aria-label="Regenerer"], button[aria-label="Regenerate"]'
@@ -20,185 +15,180 @@ MODEL_TAG = "autotest-tag"
 MODEL_SYSTEM_PROMPT = "Answer questions using the attached knowledge. Be brief."
 
 
-def new_browser(*args):
-    options = Options()
-    options.add_argument("--window-size=1920,1080")
-    for arg in args:
-        options.add_argument(arg)
-    browser = Chrome(options=options)
-    browser.implicitly_wait(5)
-    return browser
-
-
-def login(browser, username, password):
+def login(page, username, password):
     domain = os.environ["TEST_DOMAIN"]
-    browser.get(domain)
-    browser.find_element(value="email").send_keys(username)
-    browser.find_element(value="password").send_keys(password)
-    browser.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
-    WebDriverWait(browser, 10).until(EC.url_to_be(domain))
+    page.goto(domain)
+    page.locator("#email").fill(username)
+    page.locator("#password").fill(password)
+    page.locator('button[type="submit"]').click()
+    page.wait_for_url(domain, timeout=10_000)
     # Navigating before the app has loaded the session bounces workspace pages back to "/".
-    wait_for_app(browser)
+    wait_for_app(page)
 
 
-def wait_for_app(browser):
-    WebDriverWait(browser, 30).until(
-        EC.invisibility_of_element_located((By.ID, "splash-screen"))
-    )
+def wait_for_app(page):
+    page.locator("#splash-screen").wait_for(state="hidden", timeout=30_000)
     # The feedback widget overlays the right edge and intercepts clicks on row menus.
-    browser.execute_script("document.getElementById('itk-feedback')?.remove()")
+    page.evaluate("document.getElementById('itk-feedback')?.remove()")
 
 
-def open_chat(browser, username, password, model="aarhusai-start"):
-    login(browser, username, password)
-    browser.get(os.environ["TEST_DOMAIN"] + "?model=" + model)
-    wait_for_app(browser)
+def open_chat(page, username, password, model="aarhusai-start"):
+    login(page, username, password)
+    page.goto(os.environ["TEST_DOMAIN"] + "?model=" + model)
+    wait_for_app(page)
 
 
-def send_prompt(browser, text, timeout=60):
-    chat_input = browser.find_element(By.ID, "chat-input")
-    chat_input.click()
-    chat_input.send_keys(text)
-    browser.find_element(By.ID, "send-message-button").click()
-    WebDriverWait(browser, timeout).until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, REGENERATE_BUTTON))
-    )
-    return browser.find_element(By.ID, "response-content-container").text
+def send_prompt(page, text, timeout=60):
+    page.locator("#chat-input").fill(text)
+    page.locator("#send-message-button").click()
+    page.locator(REGENERATE_BUTTON).first.wait_for(state="visible", timeout=timeout * 1000)
+    return page.locator("#response-content-container").first.inner_text()
 
 
-def open_page(browser, path):
-    browser.get(os.environ["TEST_DOMAIN"] + path)
-    wait_for_app(browser)
+def open_page(page, path):
+    page.goto(os.environ["TEST_DOMAIN"] + path)
+    wait_for_app(page)
 
 
-def create_knowledge(browser, name, file_path):
-    """Create a knowledge base through the UI and upload one file into it. Leaves the browser on its page."""
-    open_page(browser, "workspace/knowledge/create")
-    browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Name your knowledge base"]').send_keys(name)
-    browser.find_element(
-        By.CSS_SELECTOR, 'textarea[placeholder="Describe your knowledge base and objectives"]'
-    ).send_keys("Automated test")
-    browser.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
-    WebDriverWait(browser, 10).until(EC.url_matches(r"/workspace/knowledge/[0-9a-f-]{36}$"))
+def create_knowledge(page, name, file_path):
+    """Create a knowledge base shared read-only with env SHARE_GROUP (default "Builder") and upload one file into it.
+    Leaves the page on the knowledge base.
+
+    Sharing the specialist alone is not enough: its knowledge is searched with the asking user's permissions.
+    """
+    open_page(page, "workspace/knowledge/create")
+    page.locator('input[placeholder="Name your knowledge base"]').fill(name)
+    page.locator('textarea[placeholder="Describe your knowledge base and objectives"]').fill("Automated test")
+    add_group_access(page, os.environ.get("SHARE_GROUP", "Builder"))
+    page.locator('button[type="submit"]').first.click()
+    page.wait_for_url(re.compile(r"/workspace/knowledge/[0-9a-f-]{36}$"), timeout=10_000)
     # The file input ignores files until the knowledge base has loaded.
-    WebDriverWait(browser, 10).until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Search Collection"]'))
-    )
+    page.locator('input[placeholder="Search Collection"]').wait_for(timeout=10_000)
 
-    file_input = browser.find_element(By.ID, "files-input")
-    browser.execute_script("arguments[0].removeAttribute('hidden')", file_input)
-    file_input.send_keys(os.path.abspath(file_path))
-    WebDriverWait(browser, 30).until(EC.element_to_be_clickable(knowledge_file_row(file_path)))
+    page.locator("#files-input").set_input_files(os.path.abspath(file_path))
+    page.locator(knowledge_file_row(file_path)).wait_for(timeout=30_000)
 
 
 def knowledge_file_row(file_path):
-    return By.XPATH, f"//button[.//*[contains(text(), '{os.path.basename(file_path)}')]]"
+    return f"//button[.//*[contains(text(), '{os.path.basename(file_path)}')]]"
 
 
-def create_model(browser, name, knowledge):
-    """Create a specialist on env BASE_MODEL (default "AarhusAI-default-v2") with `knowledge` and the `websearch`
-    tool attached, tagged `autotest-tag`, shared read-only with a group.
+def knowledge_file_preview_contains(page, file_path, text, timeout=30):
+    """On a knowledge base page, open the file until its preview contains `text`, i.e. the server has processed it.
+
+    Clicking the file before it is processed opens nothing and the row looks the same either way, so click again on
+    each poll. Returns whether the text showed up within `timeout` seconds.
+    """
+    def preview_has_text():
+        return page.evaluate(
+            "text => document.querySelector('textarea[aria-label=\"File content\"]')?.value.includes(text) ?? false",
+            text,
+        )
+
+    deadline = time.monotonic() + timeout
+    while not preview_has_text() and time.monotonic() < deadline:
+        page.locator(knowledge_file_row(file_path)).first.click()
+        page.wait_for_timeout(2000)
+    return preview_has_text()
+
+
+def create_model(page, name, knowledge, websearch=True):
+    """Create a specialist on env BASE_MODEL (default "AarhusAI-default-v2") with `knowledge` and (unless
+    `websearch=False`) the `websearch` tool attached, tagged `autotest-tag`, shared read-only with a group.
 
     The group is env SHARE_GROUP (default "Builder"); the user account must be a member to see the specialist.
     """
     group = os.environ.get("SHARE_GROUP", "Builder")
     base_model = os.environ.get("BASE_MODEL", DEFAULT_BASE_MODEL)
-    open_page(browser, "workspace/models/create")
-    browser.find_element(By.ID, "model-selector-workspace-base-model-button").click()
-    browser.find_element(By.CSS_SELECTOR, f'button[aria-label="Select {base_model} model"]').click()
+    open_page(page, "workspace/models/create")
+    page.locator("#model-selector-workspace-base-model-button").click()
+    page.locator(f'button[aria-label="Select {base_model} model"]').click()
 
-    browser.find_element(By.XPATH, "//*[normalize-space(text())='Select Knowledge']").click()
-    browser.find_element(By.XPATH, f"//button[.//*[normalize-space(text())='{knowledge}']]").click()
+    page.locator("//*[normalize-space(text())='Select Knowledge']").first.click()
+    page.locator(f"//button[.//*[normalize-space(text())='{knowledge}']]").first.click()
 
-    browser.find_element(By.XPATH, "//*[normalize-space(text())='Select Tool']").click()
-    browser.find_element(By.XPATH, "//button[span[normalize-space()='websearch']]").click()
-    browser.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+    if websearch:
+        page.locator("//*[normalize-space(text())='Select Tool']").first.click()
+        page.locator("//button[span[normalize-space()='websearch']]").click()
+        page.keyboard.press("Escape")
 
-    browser.find_element(By.XPATH, "//button[normalize-space()='Access']").click()
-    browser.find_element(By.XPATH, "//button[normalize-space()='Add Access']").click()
-    dialog = browser.find_element(By.XPATH, "//*[@role='dialog'][.//input[@placeholder='Search']]")
-    dialog.find_element(By.CSS_SELECTOR, 'input[placeholder="Search"]').send_keys(group)
-    dialog.find_element(By.XPATH, f".//button[.//div[normalize-space(text())='{group}']]").click()
-    dialog.find_element(By.XPATH, ".//button[normalize-space()='Add']").click()
+    page.locator("//button[normalize-space()='Access']").click()
+    add_group_access(page, group)
+    page.keyboard.press("Escape")
+    expect(page.locator('[role="dialog"]').first).to_be_hidden(timeout=5_000)
+
+    page.locator('input[placeholder="Model Name"]').fill(name)
+    page.locator('textarea[aria-label^="Add a short description"]').fill(MODEL_DESCRIPTION)
+    tag = page.locator('input[placeholder="Add a tag..."]')
+    tag.fill(MODEL_TAG)
+    tag.press("Enter")
+    page.locator('textarea[aria-label^="Write your model system prompt"]').fill(MODEL_SYSTEM_PROMPT)
+    page.locator("//button[normalize-space()='Save & Create']").click()
+    page.wait_for_url(os.environ["TEST_DOMAIN"] + "workspace/models", timeout=10_000)
+
+
+def add_group_access(page, group):
+    """In an open access list (model Access dialog or knowledge create form), grant `group` read access."""
+    page.locator("//button[normalize-space()='Add Access']").click()
+    dialog = page.locator("//*[@role='dialog'][.//input[@placeholder='Search']]")
+    dialog.locator('input[placeholder="Search"]').fill(group)
+    dialog.locator(f"xpath=.//button[.//div[normalize-space(text())='{group}']]").first.click()
+    dialog.locator("xpath=.//button[normalize-space()='Add']").click()
     # The access list now shows the group.
-    WebDriverWait(browser, 5).until(EC.visibility_of_element_located((
-        By.XPATH, f"//*[@role='dialog'][.//*[normalize-space()='Access List']]//*[normalize-space(text())='{group}']"
-    )))
-    browser.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-    WebDriverWait(browser, 5).until(EC.invisibility_of_element_located((By.CSS_SELECTOR, '[role="dialog"]')))
-
-    browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Model Name"]').send_keys(name)
-    browser.find_element(
-        By.CSS_SELECTOR, 'textarea[aria-label^="Add a short description"]'
-    ).send_keys(MODEL_DESCRIPTION)
-    browser.find_element(By.CSS_SELECTOR, 'input[placeholder="Add a tag..."]').send_keys(MODEL_TAG, Keys.ENTER)
-    browser.find_element(
-        By.CSS_SELECTOR, 'textarea[aria-label^="Write your model system prompt"]'
-    ).send_keys(MODEL_SYSTEM_PROMPT)
-    save = browser.find_element(By.XPATH, "//button[normalize-space()='Save & Create']")
-    browser.execute_script("arguments[0].scrollIntoView()", save)
-    save.click()
-    WebDriverWait(browser, 10).until(EC.url_to_be(os.environ["TEST_DOMAIN"] + "workspace/models"))
+    expect(page.locator(
+        f"//*[@role='dialog'][.//*[normalize-space()='Access List']]//*[normalize-space(text())='{group}']"
+    ).first).to_be_visible(timeout=5_000)
 
 
-def api(browser, method, path, body=None):
+def api(page, method, path, body=None):
     # ponytail: only for cleanup of test data; the flows under test go through the UI.
-    result = browser.execute_async_script(
-        "const [method, path, body, done] = arguments;"
-        "fetch(path, {method, body: body && JSON.stringify(body), headers: {"
-        "    'Authorization': 'Bearer ' + localStorage.token, 'Content-Type': 'application/json'}})"
-        "  .then(async r => done({ok: r.ok, status: r.status, text: await r.text()}))"
-        "  .catch(e => done({ok: false, status: 0, text: String(e)}));",
-        method, path, body,
+    result = page.evaluate(
+        """async ([method, path, body]) => {
+            try {
+                const r = await fetch(path, {method, body: body && JSON.stringify(body), headers: {
+                    'Authorization': 'Bearer ' + localStorage.token, 'Content-Type': 'application/json'}});
+                return {ok: r.ok, status: r.status, text: await r.text()};
+            } catch (e) {
+                return {ok: false, status: 0, text: String(e)};
+            }
+        }""",
+        [method, path, body],
     )
     if not result["ok"]:
         raise RuntimeError(f"{method} {path} failed: {result['status']} {result['text'][:200]}")
     return json.loads(result["text"]) if result["text"] else None
 
 
-def delete_test_data(browser):
+def delete_test_data(page):
     """Delete the logged-in user's `autotest-*` models and knowledge bases, including their files."""
-    for model in api(browser, "GET", "/api/v1/models/list?query=autotest-")["items"]:
+    for model in api(page, "GET", "/api/v1/models/list?query=autotest-")["items"]:
         if model["id"].startswith("autotest-"):
-            api(browser, "POST", "/api/v1/models/model/delete", {"id": model["id"]})
-    for knowledge in api(browser, "GET", "/api/v1/knowledge/search?query=autotest-")["items"]:
+            api(page, "POST", "/api/v1/models/model/delete", {"id": model["id"]})
+    for knowledge in api(page, "GET", "/api/v1/knowledge/search?query=autotest-")["items"]:
         if knowledge["name"].startswith("autotest-"):
-            for file in api(browser, "GET", f"/api/v1/knowledge/{knowledge['id']}/files")["items"]:
-                api(browser, "DELETE", f"/api/v1/files/{file['id']}")
-            api(browser, "DELETE", f"/api/v1/knowledge/{knowledge['id']}/delete")
+            for file in api(page, "GET", f"/api/v1/knowledge/{knowledge['id']}/files")["items"]:
+                api(page, "DELETE", f"/api/v1/files/{file['id']}")
+            api(page, "DELETE", f"/api/v1/knowledge/{knowledge['id']}/delete")
 
 
-def save_screenshot(test, browser):
+def save_screenshot(item, page, failed):
+    """Called from the conftest report hook with the pytest item and whether its call phase failed."""
     # Toggles: SCREENSHOTS=0 disables the PNG (default on); HTML_DUMP=1 enables the page HTML (default off).
     screenshot = os.environ.get("SCREENSHOTS", "1") != "0"
     html = os.environ.get("HTML_DUMP", "0") != "0"
     if not (screenshot or html):
         return
-    # ponytail: reads unittest's private _outcome; no public "did this test fail" API in tearDown
-    result = test._outcome.result
-    failed = any(t is test for t, _ in result.errors + result.failures)
     directory = os.path.join(os.path.dirname(__file__), "..", "screenshots", "failed" if failed else "success")
     os.makedirs(directory, exist_ok=True)
-    path = os.path.abspath(os.path.join(directory, test.id()))
+    path = os.path.abspath(os.path.join(directory, f"{item.module.__name__}.{item.originalname}"))
     try:
         if screenshot:
-            browser.save_screenshot(path + ".png")
+            # Fast-forward running fade-ins (menus, sidebar) so they are captured fully rendered.
+            page.screenshot(path=path + ".png", animations="disabled")
         if html:
             with open(path + ".html", "w", encoding="utf-8") as f:
-                f.write(browser.page_source)
+                f.write(page.content())
         if failed:
             print(f"\nFailure artifacts saved: {path}.*")
-    except WebDriverException:
+    except Error:
         pass
-
-
-class BrowserTestCase(unittest.TestCase):
-    chrome_args = ("--headless",)
-
-    def setUp(self):
-        self.browser = new_browser(*self.chrome_args)
-        # Cleanups run LIFO after tearDown, so ones a test registers still have a live browser.
-        self.addCleanup(self.browser.quit)
-
-    def tearDown(self):
-        save_screenshot(self, self.browser)

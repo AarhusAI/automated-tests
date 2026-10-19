@@ -1,5 +1,5 @@
 """
-Exploration helper for writing Selenium tests.
+Exploration helper for writing Playwright tests.
 Usage: python explore.py <url_path> [--login admin|builder|user] [--click <selector> ...]
 
 Navigates to TEST_DOMAIN+url_path, optionally logs in first, optionally
@@ -12,9 +12,7 @@ import sys
 import time
 import argparse
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from playwright.sync_api import sync_playwright
 import dotenv
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -33,21 +31,22 @@ OUTPUT_SCREENSHOT = os.path.join(_HERE, "explore_screenshot.png")
 OUTPUT_HTML       = os.path.join(_HERE, "explore_page.html")
 
 
-def click(browser, selector):
-    by = By.XPATH if selector.startswith(("//", "(")) else By.CSS_SELECTOR
-    element = WebDriverWait(browser, 10).until(EC.element_to_be_clickable((by, selector)))
-    element.click()
+def click(page, selector):
+    # Playwright detects XPath only for "//" and "..", so "(" needs an explicit prefix.
+    if selector.startswith("("):
+        selector = "xpath=" + selector
+    page.locator(selector).first.click(timeout=10_000)
     time.sleep(1)  # let menus/animations settle before the capture
 
 
-def save_outputs(browser):
-    browser.save_screenshot(OUTPUT_SCREENSHOT)
+def save_outputs(page):
+    page.screenshot(path=OUTPUT_SCREENSHOT)
     with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
-        f.write(browser.page_source)
+        f.write(page.content())
     print(f"Screenshot : {OUTPUT_SCREENSHOT}")
     print(f"Page source: {OUTPUT_HTML}")
-    print(f"Current URL: {browser.current_url}")
-    print(f"Page title : {browser.title}")
+    print(f"Current URL: {page.url}")
+    print(f"Page title : {page.title()}")
 
 
 def main():
@@ -60,25 +59,24 @@ def main():
         default=[],
         metavar="SELECTOR",
         help="Click this element after the page loads, before capturing "
-             "(CSS selector, or XPath if it starts with //; repeatable, clicked in order)",
+             "(CSS selector, or XPath if it starts with // or (; repeatable, clicked in order)",
     )
     args = parser.parse_args()
 
     domain = os.environ["TEST_DOMAIN"].rstrip("/")
     target = f"{domain}/{args.path.lstrip('/')}" if args.path else domain
 
-    browser = helpers.new_browser("--headless")
-    try:
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 1920, "height": 1080})
         if args.login:
             u_key, p_key = CREDENTIALS[args.login]
-            helpers.login(browser, os.environ[u_key], os.environ[p_key])
-        browser.get(target)
-        helpers.wait_for_app(browser)
+            helpers.login(page, os.environ[u_key], os.environ[p_key])
+        page.goto(target)
+        helpers.wait_for_app(page)
         for selector in args.click:
-            click(browser, selector)
-        save_outputs(browser)
-    finally:
-        browser.quit()
+            click(page, selector)
+        save_outputs(page)
 
 
 if __name__ == "__main__":

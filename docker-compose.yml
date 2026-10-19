@@ -7,9 +7,6 @@ services:
       args:
         UID: ${UID:-1042}
         GID: ${GID:-1042}
-    # Without an init as PID 1, the xvfb-run entrypoint hangs forever
-    # waiting for Xvfb's readiness signal.
-    init: true
     env_file: .env
     # Forwarded from the host only when set (e.g. SCREENSHOTS=0 task tests).
     environment:

@@ -1,60 +1,64 @@
 # Automated tests for AarhusAI
 
-Selenium-based end-to-end tests for the AarhusAI web UI.
+Playwright-based end-to-end tests for the AarhusAI web UI.
 
 ## Setup
 
 1. Copy `.env.example` to `.env` (or `task setup`) and fill in `TEST_DOMAIN` (with trailing slash) plus the role
    credentials.
-2. Install dependencies (uv): `uv sync`.
-3. Run all tests: `uv run python -m unittest`, or a single module/method:
-   `uv run python -m unittest tests.user.test_chat`.
+2. Install dependencies (uv): `uv sync`, then the browser: `uv run playwright install chromium`.
+3. Run all tests with `uv run pytest`, a single file with `uv run pytest tests/user/test_chat.py`, or a single test
+   with `uv run pytest tests/user/test_chat.py::test_user_can_send_prompt_and_receive_response`. Add `--headed` to
+   watch the browser.
 
 Most tests log in, then open `TEST_DOMAIN?model=aarhusai-start` (the web search test uses `?model=BA-gpt-oss-120b`)
 before interacting with the UI. The workspace tests open `TEST_DOMAIN/workspace/...` instead.
 
 Tests that create data name it `autotest-*` (`autotest-knowledge`, `autotest-specialist`) and delete every
 `autotest-*` model and knowledge base of the builder account, with their files, before and after the test. Created
-specialists are shared with the group in `SHARE_GROUP` (default `Builder`); the user account must be a member of it.
+knowledge bases and specialists are shared read-only with the group in `SHARE_GROUP` (default `Builder`).
 The admin tests are skipped unless `ADMIN_USERNAME` is set.
 
 After each test a screenshot is saved to `screenshots/success/<test id>.png` or `screenshots/failed/<test id>.png`
 (gitignored, overwritten on each run). In Docker, it lands in `./screenshots/` on the host via the bind mount.
 Toggle via env (`.env` or inline): `SCREENSHOTS=0` disables screenshots (default on); `HTML_DUMP=1` also saves the
-rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run python -m unittest` or
-`HTML_DUMP=1 task tests` (docker-compose forwards both from the shell).
+rendered page source as `<test id>.html` (default off), e.g. `SCREENSHOTS=0 uv run pytest` or
+`HTML_DUMP=1 task test:run:all` (docker-compose forwards both from the shell). `<test id>` is the module and function name,
+e.g. `tests.user.test_chat.test_user_can_send_prompt_and_receive_response`.
 
 ## Docker
 
-The image (`Dockerfile`) bundles Python 3.13, Chromium, chromedriver and Xvfb, so tests run without any
-local browser setup. Credentials are passed from `.env` at runtime (not baked into the image).
+The image (`Dockerfile`) bundles Python 3.13 and Playwright's Chromium, so tests run without any local browser
+setup. Credentials are passed from `.env` at runtime (not baked into the image).
 
 - Build: `docker compose build`
 - Run all tests: `docker compose run --rm tests`
-- Run a single test: `docker compose run --rm tests python -m unittest tests.user.test_chat`
+- Run a single test: `docker compose run --rm tests pytest tests/user/test_chat.py`
 - Explore a page: `docker compose run --rm tests python exploration/explore.py <url_path> --login user` (outputs land in
   `exploration/` on the host via the bind mount)
 
 The container runs as user `deploy`. The build args `UID`/`GID` default to 1042 (the server's ids); pass your own so
 files written to the bind mount (`screenshots/`, `exploration/`) are owned by you. `task build` does this automatically.
 
-The container entrypoint wraps commands in `xvfb-run`, which provides the virtual display the non-headless dictation
-test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs forever.
-
 ## Task
 
-`Taskfile.yml` wraps the Docker commands above (`task --list` shows them):
+`Taskfile.yml` wraps the Docker commands above, plus `test:headed` and `test:debug`, which run locally
+(`task --list` shows them):
 
 - `task setup` — copy `.env.example` to `.env` (skipped if `.env` exists)
 - `task build` — build the image with the host's UID/GID
-- `task tests` — clear `screenshots/` and run all tests
-- `task test TEST=tests.user.test_chat` — run one module/method (defaults to `tests.user.test_chat`)
-- `task test:list` — list test names usable as `TEST=`
+- `task test:run:all` — clear `screenshots/` and run all tests
+- `task test:run TEST=tests/user/test_chat.py::test_...` — run one file or test (defaults to `tests/user/test_chat.py`)
+- `task test:headed TEST=tests/user/test_chat.py` — run locally (not in Docker, needs `uv` and a display) with
+  visible browser windows; extra pytest args go after `--`, e.g. `task test:headed -- --slowmo 500`
+- `task test:debug TEST=tests/user/test_chat.py::test_...` — step through one test locally in the Playwright Inspector
+  (needs a display); see [Fixing an existing test](#fixing-an-existing-test)
+- `task test:list` — list the test node ids usable as `TEST=`
 - `task explore -- <url_path> --login user --click "#sel"` — run the exploration script
 - `task lint` — run markdownlint on all `.md` files and check that `CHANGELOG.md` differs from `origin/main`
   (`task lint:markdown -- --fix` autofixes)
 
-`SCREENSHOTS`/`HTML_DUMP` set in the shell are forwarded, e.g. `HTML_DUMP=1 task tests`.
+`SCREENSHOTS`/`HTML_DUMP` set in the shell are forwarded, e.g. `HTML_DUMP=1 task test:run:all`.
 
 ## Tests
 
@@ -81,8 +85,9 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 #### [tests/builder/test_create_knowledge.py](tests/builder/test_create_knowledge.py)
 
-- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base, uploads
-  `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains "BANANA".
+- **`test_builder_can_create_knowledge_and_upload_file`** — creates the `autotest-knowledge` knowledge base shared
+  with `SHARE_GROUP`, uploads `tests/fixtures/test_document.txt`, opens the file and asserts the preview contains
+  "BANANA".
 
 #### [tests/builder/test_create_model.py](tests/builder/test_create_model.py)
 
@@ -93,10 +98,10 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 #### [tests/builder/test_knowledge_deletion.py](tests/builder/test_knowledge_deletion.py)
 
-- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge` and
-  `autotest-specialist`; in a second browser the user asks the specialist for the code word and gets "BANANA". The
-  builder then deletes the file from the knowledge base, and the user asks again in a new chat and must not get
-  "BANANA" (retried once for index lag). Runs two browsers and takes a few minutes.
+- **`test_deleted_knowledge_is_no_longer_answered`** — the builder creates `autotest-knowledge`, waits until the file
+  is processed, creates `autotest-specialist` and asks it for the code word (or "VED IKKE" if it cannot find one),
+  expecting "BANANA". The builder then deletes the file from the knowledge base, asks again in a new chat and expects
+  "VED IKKE" and no "BANANA" (retried once for index lag).
 
 ### User
 
@@ -104,6 +109,21 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 - **`test_login_as_user`** — logs in with user credentials, opens `?model=aarhusai-start` and asserts the URL matches
   and the chat input is displayed.
+
+#### [tests/user/test_login_page_info.py](tests/user/test_login_page_info.py)
+
+- **`test_login_page_info`** — opens the login page and asserts it shows the notice that access to
+  AarhusAI must be requested in Aarhus Kommunes systemregister before the first login.
+
+#### [tests/user/test_accessibility_statement.py](tests/user/test_accessibility_statement.py)
+
+- **`test_was_redirects_to_accessibility_statement`** — opens `/was` and asserts it redirects to `was.digst.dk` and
+  shows the Tilgængelighedserklæring heading.
+
+#### [tests/user/test_sidebar.py](tests/user/test_sidebar.py)
+
+- **`test_user_can_see_logo_and_name_in_expanded_sidebar`** — logs in, expands the sidebar and asserts the Aarhus
+  Kommune logo is shown in the bottom left corner with the user's name above it.
 
 #### [tests/user/test_chat.py](tests/user/test_chat.py)
 
@@ -130,7 +150,7 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 - **`test_user_can_dictate_into_chat_input`** — pipes `tests/fixtures/dictation_sample.wav` into Chrome's fake
   microphone, clicks the voice input button, confirms the recording, and asserts the transcribed text "Hej med dig"
-  appears in the chat input. Runs non-headless, so it needs a display (Xvfb in Docker).
+  appears in the chat input. Launches its own browser, since the fake-media flags are launch arguments.
 
 #### [tests/user/test_tools.py](tests/user/test_tools.py)
 
@@ -141,6 +161,8 @@ test needs. `docker-compose.yml` sets `init: true`; without it `xvfb-run` hangs 
 
 - **`test_user_cannot_capture_images`** — opens the upload menu and asserts it has no Capture item. (The hidden
   `#camera-input` is always in the DOM, so it is not checked.)
+- **`test_user_upload_menu_has_only_expected_items`** — opens the upload menu and asserts it contains exactly Upload
+  filer, Vedhæft webside, Vedhæft filer and Reference chats, in that order.
 
 #### [tests/user/test_tts.py](tests/user/test_tts.py)
 
@@ -170,24 +192,40 @@ translate the export into a test. Nothing needs to be installed.
 3. **Export** the recording as JSON. Every step lists selector candidates: `#id`, `aria/...`, `text/...` and
    `xpath/...`.
 4. Translate the steps into a test (or paste the JSON to an AI assistant and ask for the translation):
-   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, class `Test<Role><Feature>`,
-     method `test_<role>_can_<action>`.
+   - New test: copy `tests/user/test_chat.py` to `tests/<role>/test_<feature>.py`, with a function
+     `test_<role>_can_<action>(page)`.
    - Existing test: compare the recorded selectors and step order with the test and patch only what changed.
-   - Login and navigation steps → `helpers.open_chat(browser, user, pw)`, or `helpers.login` plus
-     `helpers.open_page(browser, "workspace/...")`.
-   - Click steps → prefer the `#id` candidate with `By.ID`; otherwise XPath on the visible text with
+   - Login and navigation steps → `helpers.open_chat(page, user, pw)`, or `helpers.login` plus
+     `helpers.open_page(page, "workspace/...")`.
+   - Click steps → prefer the `#id` candidate with `page.locator("#id")`; otherwise XPath on the visible text with
      `normalize-space`, matching both the Danish and the English label.
-   - Typing a prompt and waiting for the answer → `helpers.send_prompt(browser, text)`, then assert on a key
+   - Typing a prompt and waiting for the answer → `helpers.send_prompt(page, text)`, then assert on a key
      substring of the response, never on the exact text.
    - Toggles keep their state per user, so check `aria-pressed` before clicking.
-   - Drop `setViewport`, `scroll` and timing steps; wait with `WebDriverWait`, not `time.sleep`.
-5. Run it: `uv run python -m unittest tests.<role>.test_<feature>` and check `screenshots/success/<test id>.png`.
+   - Drop `setViewport`, `scroll` and timing steps; locator actions auto-wait, and `expect(...)` waits for
+     assertions, so no `time.sleep`.
+5. Run it: `uv run pytest tests/<role>/test_<feature>.py` and check `screenshots/success/<test id>.png`.
 6. Add or update the entry under [Tests](#tests) and `CHANGELOG.md`.
 
-### Firefox
+### Fixing an existing test
 
-Firefox has no built-in recorder. Install the [Selenium IDE](https://www.selenium.dev/selenium-ide/) add-on
-(also available for Chrome), record the flow and export it as **Python pytest**. The export uses raw
-`webdriver.Chrome()` calls and css-path or XPath selectors, so translate it with the same rules as above:
-replace the browser setup and login with the helpers, and swap generated selectors for `By.ID` or visible-text XPath
-where possible.
+Run the test in the Playwright Inspector: `task test:debug TEST=tests/<role>/test_<feature>.py::test_...`. It opens a
+visible browser and pauses before every action, with timeouts off.
+
+- *Step over* runs one action at a time; *Resume* runs on to the next pause or the failing step.
+- *Pick locator* shows the selector for an element you click, so you can check or replace a broken one.
+- *Record* generates code for the clicks you make from the current page state; paste it into the test.
+
+To stop at a specific line instead of the first action, put `page.pause()` there temporarily and run
+`task test:headed TEST=...`.
+
+### Playwright codegen
+
+Playwright's recorder works in any browser and writes Playwright Python directly:
+
+```bash
+uv run playwright codegen "$TEST_DOMAIN"
+```
+
+Translate its output with the same rules as above: replace the login with the helpers and prefer `#id` or
+visible-text selectors over generated ones.

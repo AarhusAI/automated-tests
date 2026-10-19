@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Fixed
 
+- Screenshots are taken with animations disabled, so menus and the sidebar are captured fully rendered instead of
+  mid fade-in.
 - `helpers.login` waits for the app to load, so workspace pages opened right after login no longer redirect to `/`.
 - `helpers.create_model` uses base model env `BASE_MODEL` (default `AarhusAI-default-v2`); `BA-gpt-oss-120b` is no
   longer offered as a base model to the builder.
@@ -18,11 +20,28 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 
 ### Changed
 
+- Switched the suite from Selenium and `unittest` to pytest-playwright. Tests are plain functions that take the
+  `page` fixture, `tests/conftest.py` replaces `BrowserTestCase` and takes the screenshots, and screenshot names drop
+  the class (`tests.user.test_chat.test_...`). Run with `uv run pytest` after `uv run playwright install chromium`.
+- The dictation test runs headless, so the Docker image drops Xvfb, the `xvfb-run` entrypoint and `init: true`, and
+  installs Playwright's Chromium instead of Debian's chromium and chromedriver.
+- `task tests` and `task test` are renamed to `task test:run:all` and `task test:run`. `task test:run` takes a pytest
+  node id (`TEST=tests/user/test_chat.py::test_...`) and `task test:list` prints node ids.
+- `task test:headed` runs tests locally with visible browser windows.
+- `task test:debug` steps through a test in the Playwright Inspector.
+- `test_deleted_knowledge_is_no_longer_answered` runs as the builder only, waits until the file is processed before
+  asking, and lets the specialist answer "VED IKKE", which it must do after the deletion.
+- `helpers.create_knowledge` shares the knowledge base read-only with `SHARE_GROUP`, like `create_model` does.
 - `helpers.create_model` also adds the tag `autotest-tag` and the `websearch` tool. The specialist test now checks
   the base model, description, tag, system prompt and tool on the model's edit page.
 
 ### Added
 
+- `test_login_page_info` asserts the login page shows the access request notice.
+- `test_was_redirects_to_accessibility_statement` asserts `/was` shows the Tilgængelighedserklæring page.
+- `test_user_can_see_logo_and_name_in_expanded_sidebar` asserts the expanded sidebar shows the Aarhus Kommune logo
+  in the bottom corner with the user's name above it.
+- `test_user_upload_menu_has_only_expected_items` asserts the upload menu contains only the four expected items.
 - Tests for tools listing, no image capture in the upload menu, read aloud (TTS), workspace model search and
   import/export, knowledge creation with upload, specialist creation and sharing, knowledge deletion end to end, and
   admin login.
